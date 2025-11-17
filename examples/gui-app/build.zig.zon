@@ -1,0 +1,14 @@
+.{
+    .name = .gui_app,
+    .version = "0.0.0",
+    .fingerprint = 0xb9f19272f8cc0fdd,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .juzi = .{ .path = "../.." },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
