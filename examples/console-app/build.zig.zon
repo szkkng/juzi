@@ -1,0 +1,14 @@
+.{
+    .name = .console_app,
+    .version = "0.0.0",
+    .fingerprint = 0xc2786f548d04b855,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .juzi = .{ .path = "../.." },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
