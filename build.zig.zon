@@ -1,8 +1,8 @@
 .{
-    .name = .juzi_draft,
+    .name = .juzi,
     .version = "0.0.1",
-    .fingerprint = 0xc14325901d76bce0,
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.15.2",
+    .fingerprint = 0xc65b2a4087017892,
     .dependencies = .{
         .upstream = .{
             .url = "git+https://github.com/juce-framework/JUCE?ref=8.0.10#3af3ce009f6a02f6fa651008fffb5b41743a9fab",
@@ -13,7 +13,7 @@
         "build.zig",
         "build.zig.zon",
         "modules",
-        "examples",
-        "utils",
+        "build_utils.zig",
+        "LICENSE",
     },
 }
