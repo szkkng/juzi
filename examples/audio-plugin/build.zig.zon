@@ -1,0 +1,14 @@
+.{
+    .name = .audio_plugin,
+    .version = "0.0.1",
+    .fingerprint = 0xeb61263264fe5e88,
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .juzi = .{ .path = "../.." },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
