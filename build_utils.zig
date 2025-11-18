@@ -64,14 +64,18 @@ pub fn addConsoleApp(
     const flags = &setup.juce_flags;
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    for (options.juce_modules) |module_name| {
-        root_module.addImport(module_name, juzi_dep.module(module_name));
-    }
-
-    for (getJuceModuleAvailableDefs(root_module)) |flag| {
+    const juce_modules_lib = addJuceModules(b, juzi_dep, .{
+        .target = root_module.resolved_target.?,
+        .optimize = root_module.optimize.?,
+        .imports = options.juce_modules,
+    });
+    for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    propagateFlagsToJuceModules(root_module, flags.items);
+    for (root_module.c_macros.items) |macro| {
+        juce_modules_lib.root_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
+    }
+    propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
     addFlagsToLinkObjects(root_module, flags.items);
 
@@ -79,6 +83,7 @@ pub fn addConsoleApp(
         .name = setup.config.product_name,
         .root_module = root_module,
     });
+    console_app.root_module.linkLibrary(juce_modules_lib);
 
     return console_app;
 }
