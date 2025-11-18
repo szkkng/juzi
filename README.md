@@ -2,11 +2,12 @@
 
 WIP: [JUCE](https://github.com/juce-framework/JUCE) using the [Zig](https://ziglang.org/) build system
 
-Currently, only basic macOS builds of console apps, GUI apps, and audio plugins
-(VST3 and standalone) are supported, and only some JUCE modules have been
-implemented so far (currently just enough to build the included examples). The
-examples build and run, but many configuration fields are still missing, and
-their behavior hasn’t been fully verified yet.
+Current limitations:
+
+- Only macOS builds are supported.
+- Plugin formats are limited to VST3 and Standalone.
+- Only the JUCE modules required for the included examples are implemented.
+- Many configuration fields are still missing.
 
 ## Usage
 
@@ -16,7 +17,7 @@ Initialize a Zig build project if you haven't already:
 zig init
 ```
 
-Fetch the dependency and add it to your `build.zig.zon`:
+Download and add juzi as a dependency by running the following command in your project root:
 
 ```bash
 zig fetch --save git+https://github.com/szkkng/juzi.git
@@ -86,3 +87,8 @@ To build:
 ```bash
 zig build
 ```
+
+## Motivation
+
+- To better understand both the JUCE CMake build system and Zig's build system.
+- Just for fun.
