@@ -33,7 +33,7 @@ const zon = @import("build.zig.zon");
 const juzi = @import("juzi");
 
 // Define project configuration.
-const config = juzi.utils.ProjectConfig{
+const config = juzi.Setup.ProjectConfig{
     .product_name = "JuceZbs",
     .version = zon.version,
     .bundle_id = "com.example.jucezbs",
@@ -48,9 +48,6 @@ pub fn build(b: *std.Build) void {
 
     // Create the module for the plugin's C++ source files.
     const module = b.createModule(.{ .target = target, .optimize = optimize });
-    module.addCMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    module.addCMacro("JUCE_WEB_BROWSER", "0");
-    module.addCMacro("JUCE_USE_CURL", "0");
     module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
@@ -65,12 +62,18 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Add juzi as a dependency.
-    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
-    // Configure the plugin and collect install steps for the selected plugin formats.
-    const plugin = juzi.utils.addPlugin(juzi_dep, .{
-        .root_module = module,
-        .juce_modules = &.{"juce_audio_utils"},
+    // Create a juzi setup linked to this module.
+    const juzi_dep = b.dependency("juzi", .{});
+    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+
+    // Configure JUCE-related preprocessor macros.
+    juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+
+    // After configuring juzi, add plugin targets for the selected formats.
+    const plugin = juzi_setup.addPlugin(.{
+        .juce_modules = &.{.juce_audio_utils},
         .config = config,
     });
 
