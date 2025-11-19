@@ -62,7 +62,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Create a juzi setup linked to this module.
+    // Initialize juzi setup using this module and the juzi dependency.
     const juzi_dep = b.dependency("juzi", .{});
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
 
