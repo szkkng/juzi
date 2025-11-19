@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) void {
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
 
     const console_app = juzi_setup.addConsoleApp(.{
-        .juce_modules = &.{"juce_core"},
+        .juce_modules = &.{.juce_core},
         .config = config,
     });
     b.installArtifact(console_app);

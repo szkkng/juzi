@@ -44,7 +44,7 @@ pub fn build(b: *std.Build) void {
     );
 
     const gui_app = juzi_setup.addGuiApp(.{
-        .juce_modules = &.{"juce_gui_extra"},
+        .juce_modules = &.{.juce_gui_extra},
         .config = config,
     });
     b.getInstallStep().dependOn(&gui_app.step);

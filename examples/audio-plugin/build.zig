@@ -37,7 +37,7 @@ pub fn build(b: *std.Build) void {
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
 
     const plugin = juzi_setup.addPlugin(.{
-        .juce_modules = &.{"juce_audio_utils"},
+        .juce_modules = &.{.juce_audio_utils},
         .config = config,
     });
 
