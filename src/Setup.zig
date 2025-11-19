@@ -627,15 +627,6 @@ fn collectJuceModules(
     }
 }
 
-// const Setup = struct {
-// juzi_dep: *std.Build.Dependency,
-// juce_flags: std.ArrayList([]const u8) = .empty,
-// juce_modules: std.ArrayList([]const u8),
-// root_module: *std.Build.Module,
-// binary_data: std.ArrayList([]const u8) = .empty,
-// config: ProjectConfig,
-// };
-
 const AddJuceModulesOptions = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
