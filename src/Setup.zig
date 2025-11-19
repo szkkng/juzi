@@ -1,10 +1,6 @@
 const std = @import("std");
 const Setup = @This();
-
-juzi_dep: *std.Build.Dependency,
-root_module: *std.Build.Module,
-binary_data: std.ArrayList([]const u8),
-juce_macros: std.ArrayList([]const u8),
+pub const JuceModule = @import("root.zig").JuceModule;
 
 // TODO: support more plugin formats
 pub const PluginFormat = enum {
@@ -52,6 +48,11 @@ pub const ProjectConfig = struct {
     vst3_auto_manifest: bool = true,
 };
 
+juzi_dep: *std.Build.Dependency,
+root_module: *std.Build.Module,
+binary_data: std.ArrayList([]const u8),
+juce_macros: std.ArrayList([]const u8),
+
 pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
     const upstream = juzi_dep.builder.dependency("upstream", .{});
     root_module.addIncludePath(upstream.path("modules"));
@@ -65,7 +66,7 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
 }
 
 pub const AddOptions = struct {
-    juce_modules: []const []const u8,
+    juce_modules: []const JuceModule,
     config: ProjectConfig,
     flags: []const []const u8 = &.{},
 };
@@ -103,7 +104,7 @@ pub fn addConsoleApp(
     const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
         .target = target,
         .optimize = optimize,
-        .imports = options.juce_modules,
+        .juce_modules = options.juce_modules,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
@@ -151,16 +152,16 @@ pub fn addGuiApp(
     }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    var juce_modules: std.ArrayList([]const u8) = .empty;
-    for (options.juce_modules) |module_name| {
-        juce_modules.append(b.allocator, module_name) catch @panic("OOM");
+    var juce_modules: std.ArrayList(JuceModule) = .empty;
+    for (options.juce_modules) |module| {
+        juce_modules.append(b.allocator, module) catch @panic("OOM");
     }
-    juce_modules.append(b.allocator, "juce_build_tools") catch @panic("OOM");
+    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
 
     const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
         .target = target,
         .optimize = optimize,
-        .imports = juce_modules.items,
+        .juce_modules = juce_modules.items,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
@@ -260,16 +261,16 @@ pub fn addPlugin(
     flags.append(b.allocator, b.fmt("-DJucePlugin_Version={s}", .{config.version})) catch @panic("OOM");
     flags.append(b.allocator, b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version})) catch @panic("OOM");
 
-    var juce_modules: std.ArrayList([]const u8) = .empty;
-    for (options.juce_modules) |module_name| {
-        juce_modules.append(b.allocator, module_name) catch @panic("OOM");
+    var juce_modules: std.ArrayList(JuceModule) = .empty;
+    for (options.juce_modules) |module| {
+        juce_modules.append(b.allocator, module) catch @panic("OOM");
     }
-    juce_modules.append(b.allocator, "juce_build_tools") catch @panic("OOM");
+    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
 
     const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
         .target = target,
         .optimize = optimize,
-        .imports = juce_modules.items,
+        .juce_modules = juce_modules.items,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
@@ -638,7 +639,7 @@ fn collectJuceModules(
 const AddJuceModulesOptions = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    imports: []const []const u8,
+    juce_modules: []const JuceModule,
 };
 
 fn addJuceModules(
@@ -654,8 +655,8 @@ fn addJuceModules(
             .link_libcpp = true,
         }),
     });
-    for (options.imports) |module_name| {
-        juce_modules_lib.root_module.addImport(module_name, juzi_dep.module(module_name));
+    for (options.juce_modules) |module| {
+        juce_modules_lib.root_module.addImport(@tagName(module), juzi_dep.module(@tagName(module)));
     }
 
     return juce_modules_lib;
