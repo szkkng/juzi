@@ -2,7 +2,7 @@ const std = @import("std");
 const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
 
-const config = juzi.utils.ProjectConfig{
+const config = juzi.Setup.ProjectConfig{
     .product_name = "GUI App Example",
     .version = zon.version,
 };
@@ -16,10 +16,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .link_libcpp = true,
     });
-    module.addCMacro("JUCE_WEB_BROWSER", "0");
-    module.addCMacro("JUCE_USE_CURL", "0");
-    module.addCMacro("JUCE_APPLICATION_NAME_STRING", b.fmt("\"{s}\"", .{"GUI App Example"}));
-    module.addCMacro("JUCE_APPLICATION_VERSION_STRING", b.fmt("\"{s}\"", .{zon.version}));
     module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
@@ -34,10 +30,21 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
-    const gui_app = juzi.utils.addGuiApp(juzi_dep, .{
-        .root_module = module,
-        .juce_modules = &.{"juce_gui_extra"},
+    const juzi_dep = b.dependency("juzi", .{});
+    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+    juzi_setup.addJuceMacro(
+        "JUCE_APPLICATION_NAME_STRING",
+        b.fmt("\"{s}\"", .{"GUI App Example"}),
+    );
+    juzi_setup.addJuceMacro(
+        "JUCE_APPLICATION_VERSION_STRING",
+        b.fmt("\"{s}\"", .{zon.version}),
+    );
+
+    const gui_app = juzi_setup.addGuiApp(.{
+        .juce_modules = &.{.juce_gui_extra},
         .config = config,
     });
     b.getInstallStep().dependOn(&gui_app.step);

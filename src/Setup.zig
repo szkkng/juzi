@@ -1,4 +1,6 @@
 const std = @import("std");
+const Setup = @This();
+pub const JuceModule = @import("root.zig").JuceModule;
 
 // TODO: support more plugin formats
 pub const PluginFormat = enum {
@@ -46,103 +48,142 @@ pub const ProjectConfig = struct {
     vst3_auto_manifest: bool = true,
 };
 
-pub const InitOptions = struct {
-    root_module: *std.Build.Module,
-    juce_modules: []const []const u8,
-    binary_data: []const []const u8 = &.{},
+juzi_dep: *std.Build.Dependency,
+root_module: *std.Build.Module,
+binary_data: std.ArrayList([]const u8),
+juce_macros: std.ArrayList([]const u8),
+
+pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
+    const upstream = juzi_dep.builder.dependency("upstream", .{});
+    root_module.addIncludePath(upstream.path("modules"));
+
+    return Setup{
+        .root_module = root_module,
+        .juzi_dep = juzi_dep,
+        .binary_data = .empty,
+        .juce_macros = .empty,
+    };
+}
+
+pub const AddOptions = struct {
+    juce_modules: []const JuceModule,
     config: ProjectConfig,
     flags: []const []const u8 = &.{},
 };
 
 pub fn addConsoleApp(
-    juzi_dep: *std.Build.Dependency,
-    options: InitOptions,
+    self: Setup,
+    options: AddOptions,
 ) *std.Build.Step.Compile {
-    var setup = init(juzi_dep, options);
-    const root_module = setup.root_module;
-    const b = root_module.owner;
-    const flags = &setup.juce_flags;
+    const b = self.root_module.owner;
+    const target = self.root_module.resolved_target.?;
+    const optimize = self.root_module.optimize orelse .Debug;
+
+    switch (target.result.os.tag) {
+        .macos => {
+            addAppleSdkPaths(b, self.root_module);
+        },
+        // .windows => {
+        // },
+        else => @panic("Not implemented yet: only macOS is supported"),
+    }
+
+    var flags = std.ArrayList([]const u8).empty;
+
+    for (getJuceCommonFlags(b, target, optimize)) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (options.flags) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
+    }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    const juce_modules_lib = addJuceModules(b, juzi_dep, .{
-        .target = root_module.resolved_target.?,
-        .optimize = root_module.optimize.?,
-        .imports = options.juce_modules,
+    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
+        .target = target,
+        .optimize = optimize,
+        .juce_modules = options.juce_modules,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    for (root_module.c_macros.items) |macro| {
-        juce_modules_lib.root_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
-    }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    addFlagsToLinkObjects(root_module, flags.items);
-
     const console_app = b.addExecutable(.{
-        .name = setup.config.product_name,
-        .root_module = root_module,
+        .name = options.config.product_name,
+        .root_module = self.root_module,
     });
     console_app.root_module.linkLibrary(juce_modules_lib);
+    addFlagsToLinkObjects(console_app.root_module, flags.items);
 
     return console_app;
 }
 
 pub fn addGuiApp(
-    juzi_dep: *std.Build.Dependency,
-    options: InitOptions,
+    self: Setup,
+    options: AddOptions,
 ) *std.Build.Step.InstallArtifact {
-    var setup = init(juzi_dep, options);
-    const root_module = setup.root_module;
-    const b = root_module.owner;
-    const flags = &setup.juce_flags;
-    const upstream = juzi_dep.builder.dependency("upstream", .{});
-    const target = root_module.resolved_target.?;
-    const optimize = root_module.optimize.?;
+    const b = self.root_module.owner;
+    const target = self.root_module.resolved_target.?;
+    const optimize = self.root_module.optimize orelse .Debug;
+    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+
+    switch (target.result.os.tag) {
+        .macos => {
+            addAppleSdkPaths(b, self.root_module);
+        },
+        // .windows => {
+        // },
+        else => @panic("Not implemented yet: only macOS is supported"),
+    }
+
+    var flags = std.ArrayList([]const u8).empty;
+
+    for (getJuceCommonFlags(b, target, optimize)) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (options.flags) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
+    }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    var juce_modules: std.ArrayList([]const u8) = .empty;
-    for (options.juce_modules) |module_name| {
-        juce_modules.append(b.allocator, module_name) catch @panic("OOM");
+    var juce_modules: std.ArrayList(JuceModule) = .empty;
+    for (options.juce_modules) |module| {
+        juce_modules.append(b.allocator, module) catch @panic("OOM");
     }
-    juce_modules.append(b.allocator, "juce_build_tools") catch @panic("OOM");
+    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
 
-    const juce_modules_lib = addJuceModules(b, juzi_dep, .{
+    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
         .target = target,
         .optimize = optimize,
-        .imports = juce_modules.items,
+        .juce_modules = juce_modules.items,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    for (root_module.c_macros.items) |macro| {
-        juce_modules_lib.root_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
-    }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
-
-    for (setup.root_module.link_objects.items) |lobj| {
-        switch (lobj) {
-            .c_source_file => updateFlags(std.Build.Module.CSourceFile, b, lobj.c_source_file, flags.items),
-            .c_source_files => updateFlags(std.Build.Module.CSourceFiles, b, lobj.c_source_files, flags.items),
-            else => {},
-        }
-    }
 
     const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
     addFlagsToLinkObjects(juceaide.root_module, flags.items);
 
-    const product_name = setup.config.product_name;
+    const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
         .name = product_name,
-        .root_module = setup.root_module,
+        .root_module = self.root_module,
     });
     gui_app.root_module.linkLibrary(juce_modules_lib);
+    addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
     switch (target.result.os.tag) {
         .macos => {
             const install_gui_app = addInstallBundle(gui_app, .gui_app);
 
-            const install_plist = addInstallInfoPlist(juceaide, setup.config, .gui_app);
+            const install_plist = addInstallInfoPlist(juceaide, options.config, .gui_app);
             install_gui_app.step.dependOn(&install_plist.step);
 
             const install_pkginfo = addInstallPkgInfo(juceaide, product_name, .gui_app);
@@ -166,20 +207,40 @@ pub const Plugin = struct {
 };
 
 pub fn addPlugin(
-    juzi_dep: *std.Build.Dependency,
-    options: InitOptions,
+    self: Setup,
+    options: AddOptions,
 ) Plugin {
-    var setup = init(juzi_dep, options);
-    const root_module = setup.root_module;
-    const b = root_module.owner;
-    const flags = &setup.juce_flags;
-    const upstream = setup.juzi_dep.builder.dependency("upstream", .{});
-    const config = setup.config;
+    const b = self.root_module.owner;
+    const target = self.root_module.resolved_target.?;
+    const optimize = self.root_module.optimize orelse .Debug;
+    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
     var plugin: Plugin = .{
         .artifacts = .init(b.allocator),
         .install_steps = .init(b.allocator),
     };
 
+    switch (target.result.os.tag) {
+        .macos => {
+            addAppleSdkPaths(b, self.root_module);
+        },
+        // .windows => {
+        // },
+        else => @panic("Not implemented yet: only macOS is supported"),
+    }
+
+    var flags = std.ArrayList([]const u8).empty;
+
+    for (getJuceCommonFlags(b, target, optimize)) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (options.flags) |flag| {
+        flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
+    }
+
+    const config = options.config;
     // TODO: add more JUCE plugin macros and clean up
     flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)})) catch @panic("OOM");
     flags.append(b.allocator, b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)})) catch @panic("OOM");
@@ -200,72 +261,53 @@ pub fn addPlugin(
     flags.append(b.allocator, b.fmt("-DJucePlugin_Version={s}", .{config.version})) catch @panic("OOM");
     flags.append(b.allocator, b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version})) catch @panic("OOM");
 
-    switch (root_module.resolved_target.?.result.os.tag) {
-        .macos => {
-            addAppleSdkPaths(b, root_module);
-            flags.append(b.allocator, "-DJUCE_MAC=1") catch @panic("OOM");
-        },
-        // .windows => {
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
+    var juce_modules: std.ArrayList(JuceModule) = .empty;
+    for (options.juce_modules) |module| {
+        juce_modules.append(b.allocator, module) catch @panic("OOM");
     }
+    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
 
-    var juce_modules: std.ArrayList([]const u8) = .empty;
-    for (options.juce_modules) |module_name| {
-        juce_modules.append(b.allocator, module_name) catch @panic("OOM");
-    }
-    juce_modules.append(b.allocator, "juce_build_tools") catch @panic("OOM");
-
-    const juce_modules_lib = addJuceModules(b, juzi_dep, .{
-        .target = root_module.resolved_target.?,
-        .optimize = root_module.optimize.?,
-        .imports = juce_modules.items,
+    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
+        .target = target,
+        .optimize = optimize,
+        .juce_modules = juce_modules.items,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    for (root_module.c_macros.items) |macro| {
-        juce_modules_lib.root_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
-    }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(
-        upstream,
-        juce_modules_lib,
-        root_module.resolved_target.?,
-        root_module.optimize.?,
-    );
+    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
     addFlagsToLinkObjects(juceaide.root_module, flags.items);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
-        .root_module = root_module,
+        .root_module = self.root_module,
     });
     plugin_shared_lib.linkLibrary(juce_modules_lib);
+    addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
-    if (options.binary_data.len > 0) {
+    if (self.binary_data.items.len > 0) {
         const binary_data_lib = addBinaryData(b, .{
-            .target = root_module.resolved_target.?,
-            .optimize = root_module.optimize.?,
+            .target = target,
+            .optimize = optimize,
             .juceaide = juceaide,
-            .binary_data = setup.binary_data.items,
+            .binary_data = self.binary_data.items,
         });
         for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
-            root_module.addIncludePath(include_dir.path);
+            self.root_module.addIncludePath(include_dir.path);
         }
         plugin.binary_data = binary_data_lib;
         plugin_shared_lib.linkLibrary(binary_data_lib);
     }
-
-    addFlagsToLinkObjects(root_module, flags.items);
 
     for (config.formats) |format| {
         switch (format) {
             .vst3 => {
                 flags.append(b.allocator, "-DJucePlugin_Build_VST3=1") catch @panic("OOM");
                 const vst3_module = b.createModule(.{
-                    .target = root_module.resolved_target.?,
-                    .optimize = root_module.optimize,
+                    .target = target,
+                    .optimize = optimize,
                     .link_libcpp = true,
                 });
                 vst3_module.addIncludePath(upstream.path("modules"));
@@ -275,12 +317,8 @@ pub fn addPlugin(
                     .files = &.{
                         "juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm",
                     },
-                    .flags = setup.juce_flags.items,
+                    .flags = flags.items,
                 });
-
-                for (root_module.c_macros.items) |macro| {
-                    vst3_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
-                }
 
                 const vst3_step = b.step("vst3", "Build VST3");
 
@@ -314,9 +352,9 @@ pub fn addPlugin(
                         upstream,
                         vst3.name,
                         .{
-                            .target = root_module.resolved_target.?,
-                            .optimize = root_module.optimize.?,
-                            .flags = setup.juce_flags.items,
+                            .target = target,
+                            .optimize = optimize,
+                            .flags = flags.items,
                         },
                     );
                     vst3_step.dependOn(&install_module_info.step);
@@ -329,8 +367,8 @@ pub fn addPlugin(
                 flags.append(b.allocator, "-DJucePlugin_Build_Standalone=1") catch @panic("OOM");
 
                 const standalone_module = b.createModule(.{
-                    .target = root_module.resolved_target.?,
-                    .optimize = root_module.optimize,
+                    .target = target,
+                    .optimize = optimize,
                     .link_libcpp = true,
                 });
 
@@ -340,12 +378,8 @@ pub fn addPlugin(
                     .files = &.{
                         "juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp",
                     },
-                    .flags = setup.juce_flags.items,
+                    .flags = flags.items,
                 });
-
-                for (root_module.c_macros.items) |macro| {
-                    standalone_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
-                }
 
                 const standalone = b.addExecutable(.{
                     .name = config.product_name,
@@ -378,6 +412,48 @@ pub fn addPlugin(
     }
 
     return plugin;
+}
+
+// Similar to `std.Build.Module.addCMacro`, but for defining
+// JUCE_* macros that apply to all JUCE-related compilation,
+// not just the root module.
+pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
+    const b = self.root_module.owner;
+    self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
+}
+
+fn getJuceCommonFlags(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) []const []const u8 {
+    var flags = std.ArrayList([]const u8).empty;
+
+    switch (target.result.os.tag) {
+        .macos => {
+            flags.append(b.allocator, "-DJUCE_MAC=1") catch @panic("OOM");
+        },
+        // .windows => {
+        //     flags.append(b.allocator, "-D_CONSOLE=1") catch @panic("OOM");
+        // },
+        else => @panic("Not implemented yet: only macOS is supported"),
+    }
+
+    const standard_defs = getJuceStandardDefs(b, optimize);
+    for (standard_defs) |def| {
+        flags.append(b.allocator, def) catch @panic("OOM");
+    }
+
+    flags.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
+    flags.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
+
+    // Zig enforces -Werror=date-time in release builds for reproducible builds,
+    // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.
+    // Disable this error as a workaround to allow JUCE to build.
+    // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
+    flags.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
+
+    return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
 const AddBinaryDataOptions = struct {
@@ -551,71 +627,10 @@ fn collectJuceModules(
     }
 }
 
-const Setup = struct {
-    juzi_dep: *std.Build.Dependency,
-    juce_flags: std.ArrayList([]const u8) = .empty,
-    juce_modules: std.ArrayList([]const u8),
-    root_module: *std.Build.Module,
-    binary_data: std.ArrayList([]const u8) = .empty,
-    config: ProjectConfig,
-};
-
-fn init(juzi_dep: *std.Build.Dependency, options: InitOptions) Setup {
-    const b = options.root_module.owner;
-    const root_module = options.root_module;
-    var flags: std.ArrayList([]const u8) = .empty;
-
-    const standard_defs = getJuceStandardDefs(b, options.root_module.optimize.?);
-    for (standard_defs) |def| {
-        flags.append(b.allocator, def) catch @panic("OOM");
-    }
-
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-
-    flags.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
-    flags.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
-
-    // Zig enforces -Werror=date-time in release builds for reproducible builds,
-    // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.
-    // Disable this error as a workaround to allow JUCE to build.
-    // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
-    flags.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
-
-    var binary_data: std.ArrayList([]const u8) = .empty;
-    for (options.binary_data) |file| {
-        binary_data.append(b.allocator, file) catch @panic("OOM");
-    }
-
-    switch (root_module.resolved_target.?.result.os.tag) {
-        .macos => {
-            addAppleSdkPaths(b, root_module);
-            flags.append(b.allocator, "-DJUCE_MAC=1") catch @panic("OOM");
-        },
-        // .windows => {
-        //     flags.append(b.allocator, "-D_CONSOLE=1") catch @panic("OOM");
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
-
-    const upstream = juzi_dep.builder.dependency("upstream", .{});
-    root_module.addIncludePath(upstream.path("modules"));
-
-    return Setup{
-        .juzi_dep = juzi_dep,
-        .juce_flags = flags,
-        .juce_modules = .empty,
-        .root_module = options.root_module,
-        .config = options.config,
-        .binary_data = binary_data,
-    };
-}
-
 const AddJuceModulesOptions = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    imports: []const []const u8,
+    juce_modules: []const JuceModule,
 };
 
 fn addJuceModules(
@@ -631,8 +646,8 @@ fn addJuceModules(
             .link_libcpp = true,
         }),
     });
-    for (options.imports) |module_name| {
-        juce_modules_lib.root_module.addImport(module_name, juzi_dep.module(module_name));
+    for (options.juce_modules) |module| {
+        juce_modules_lib.root_module.addImport(@tagName(module), juzi_dep.module(@tagName(module)));
     }
 
     return juce_modules_lib;
