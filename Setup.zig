@@ -4,6 +4,7 @@ const Setup = @This();
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,
 binary_data: std.ArrayList([]const u8),
+juce_macros: std.ArrayList([]const u8),
 
 // TODO: support more plugin formats
 pub const PluginFormat = enum {
@@ -59,6 +60,7 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
         .root_module = root_module,
         .juzi_dep = juzi_dep,
         .binary_data = .empty,
+        .juce_macros = .empty,
     };
 }
 
@@ -92,6 +94,9 @@ pub fn addConsoleApp(
     }
     for (options.flags) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
     }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
@@ -140,6 +145,9 @@ pub fn addGuiApp(
     }
     for (options.flags) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
     }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
@@ -226,6 +234,9 @@ pub fn addPlugin(
     }
     for (options.flags) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
+    }
+    for (self.juce_macros.items) |macro| {
+        flags.append(b.allocator, macro) catch @panic("OOM");
     }
 
     const config = options.config;
@@ -400,6 +411,14 @@ pub fn addPlugin(
     }
 
     return plugin;
+}
+
+// Similar to `std.Build.Module.addCMacro`, but for defining
+// JUCE_* macros that apply to all JUCE-related compilation,
+// not just the root module.
+pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
+    const b = self.root_module.owner;
+    self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
 fn getJuceCommonFlags(
