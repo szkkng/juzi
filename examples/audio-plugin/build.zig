@@ -31,15 +31,14 @@ pub fn build(b: *std.Build) void {
     });
 
     const juzi_dep = b.dependency("juzi", .{});
-    const juzi_setup = juzi.Setup.init(juzi_dep, module);
+    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+
     const plugin = juzi_setup.addPlugin(.{
         .juce_modules = &.{"juce_audio_utils"},
         .config = config,
-        .flags = &.{
-            "-DJUCE_VST3_CAN_REPLACE_VST2=0",
-            "-DJUCE_WEB_BROWSER=0",
-            "-DJUCE_USE_CURL=0",
-        },
     });
 
     var steps_it = plugin.install_steps.valueIterator();

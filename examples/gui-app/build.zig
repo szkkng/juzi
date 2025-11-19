@@ -31,16 +31,21 @@ pub fn build(b: *std.Build) void {
     });
 
     const juzi_dep = b.dependency("juzi", .{});
-    const juzi_setup = juzi.Setup.init(juzi_dep, module);
+    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+    juzi_setup.addJuceMacro(
+        "JUCE_APPLICATION_NAME_STRING",
+        b.fmt("\"{s}\"", .{"GUI App Example"}),
+    );
+    juzi_setup.addJuceMacro(
+        "JUCE_APPLICATION_VERSION_STRING",
+        b.fmt("\"{s}\"", .{zon.version}),
+    );
+
     const gui_app = juzi_setup.addGuiApp(.{
         .juce_modules = &.{"juce_gui_extra"},
         .config = config,
-        .flags = &.{
-            "-DJUCE_WEB_BROWSER=0",
-            "-DJUCE_USE_CURL=0",
-            b.fmt("-DJUCE_APPLICATION_NAME_STRING=\"{s}\"", .{"GUI App Example"}),
-            b.fmt("-DJUCE_APPLICATION_VERSION_STRING=\"{s}\"", .{zon.version}),
-        },
     });
     b.getInstallStep().dependOn(&gui_app.step);
 

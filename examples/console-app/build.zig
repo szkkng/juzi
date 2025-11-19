@@ -29,14 +29,13 @@ pub fn build(b: *std.Build) void {
     });
 
     const juzi_dep = b.dependency("juzi", .{});
-    const juzi_setup = juzi.Setup.init(juzi_dep, module);
+    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+
     const console_app = juzi_setup.addConsoleApp(.{
         .juce_modules = &.{"juce_core"},
         .config = config,
-        .flags = &.{
-            "-DJUCE_WEB_BROWSER=0",
-            "-DJUCE_USE_CURL=0",
-        },
     });
     b.installArtifact(console_app);
 
