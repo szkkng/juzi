@@ -1,6 +1,6 @@
 # juzi
 
-WIP: [JUCE](https://github.com/juce-framework/JUCE) using the [Zig](https://ziglang.org/) build system
+WIP: [JUCE](https://juce.com) using the [Zig](https://ziglang.org/) build system
 
 Current limitations:
 
@@ -91,7 +91,7 @@ To build:
 zig build
 ```
 
-## Generating `compile_commands.json`
+## Generating compile_commands.json
 
 Zig doesn't currently support generating `compile_commands.json`.  
 A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
