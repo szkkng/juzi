@@ -1,5 +1,6 @@
 const std = @import("std");
 const Setup = @This();
+const apple_sdk = @import("apple_sdk.zig");
 pub const JuceModule = @import("root.zig").JuceModule;
 
 // TODO: support more plugin formats
@@ -79,15 +80,6 @@ pub fn addConsoleApp(
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
 
-    switch (target.result.os.tag) {
-        .macos => {
-            addAppleSdkPaths(b, self.root_module);
-        },
-        // .windows => {
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
-
     var flags = std.ArrayList([]const u8).empty;
 
     for (getJuceCommonFlags(b, target, optimize)) |flag| {
@@ -118,6 +110,11 @@ pub fn addConsoleApp(
     console_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_modules_lib.root_module);
+        apple_sdk.addPaths(b, console_app.root_module);
+    }
+
     return console_app;
 }
 
@@ -129,15 +126,6 @@ pub fn addGuiApp(
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
     const upstream = self.juzi_dep.builder.dependency("upstream", .{});
-
-    switch (target.result.os.tag) {
-        .macos => {
-            addAppleSdkPaths(b, self.root_module);
-        },
-        // .windows => {
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
 
     var flags = std.ArrayList([]const u8).empty;
 
@@ -179,6 +167,12 @@ pub fn addGuiApp(
     gui_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_modules_lib.root_module);
+        apple_sdk.addPaths(b, juceaide.root_module);
+        apple_sdk.addPaths(b, gui_app.root_module);
+    }
+
     switch (target.result.os.tag) {
         .macos => {
             const install_gui_app = addInstallBundle(gui_app, .gui_app);
@@ -218,15 +212,6 @@ pub fn addPlugin(
         .artifacts = .init(b.allocator),
         .install_steps = .init(b.allocator),
     };
-
-    switch (target.result.os.tag) {
-        .macos => {
-            addAppleSdkPaths(b, self.root_module);
-        },
-        // .windows => {
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
 
     var flags = std.ArrayList([]const u8).empty;
 
@@ -301,6 +286,12 @@ pub fn addPlugin(
         plugin_shared_lib.linkLibrary(binary_data_lib);
     }
 
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_modules_lib.root_module);
+        apple_sdk.addPaths(b, juceaide.root_module);
+        apple_sdk.addPaths(b, plugin_shared_lib.root_module);
+    }
+
     for (config.formats) |format| {
         switch (format) {
             .vst3 => {
@@ -319,6 +310,9 @@ pub fn addPlugin(
                     },
                     .flags = flags.items,
                 });
+                if (target.result.os.tag.isDarwin()) {
+                    apple_sdk.addPaths(b, vst3_module);
+                }
 
                 const vst3_step = b.step("vst3", "Build VST3");
 
@@ -371,7 +365,6 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-
                 standalone_module.addIncludePath(upstream.path("modules"));
                 standalone_module.addCSourceFiles(.{
                     .root = upstream.path("modules"),
@@ -380,6 +373,9 @@ pub fn addPlugin(
                     },
                     .flags = flags.items,
                 });
+                if (target.result.os.tag.isDarwin()) {
+                    apple_sdk.addPaths(b, standalone_module);
+                }
 
                 const standalone = b.addExecutable(.{
                     .name = config.product_name,
@@ -581,6 +577,10 @@ fn addInstallModuleInfo(
         .prefix,
         b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
     );
+
+    if (options.target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, manifest_helper.root_module);
+    }
 
     return install_module_info;
 }
@@ -892,12 +892,4 @@ fn semanticVersionToVersionCode(b: *std.Build, ver: []const u8) ![]const u8 {
     const version = try std.SemanticVersion.parse(ver);
     const v = (version.major << 16) | (version.minor << 8) | version.patch;
     return b.fmt("0x{X}", .{v});
-}
-
-fn addAppleSdkPaths(b: *std.Build, m: *std.Build.Module) void {
-    const sdkPath = std.zig.system.darwin.getSdk(b.allocator, &m.resolved_target.?.result) orelse
-        @panic("apple sdk not found");
-    m.addSystemFrameworkPath(.{ .cwd_relative = b.pathJoin(&.{ sdkPath, "/System/Library/Frameworks" }) });
-    m.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ sdkPath, "/usr/include" }) });
-    m.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ sdkPath, "/usr/lib" }) });
 }

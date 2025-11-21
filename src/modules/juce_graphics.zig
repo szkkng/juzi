@@ -1,4 +1,5 @@
 const std = @import("std");
+const apple_sdk = @import("../apple_sdk.zig");
 const juce_events = @import("juce_events.zig");
 
 pub const name = "juce_graphics";
@@ -16,6 +17,7 @@ pub fn addModule(
     const juce_graphics = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
         .link_libcpp = true,
         .imports = &.{
             .{
@@ -64,6 +66,11 @@ pub fn addModule(
             "juce_graphics/juce_graphics_Harfbuzz.cpp",
         },
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_graphics);
+    }
+
     switch (target.result.os.tag) {
         .macos => {
             juce_graphics.linkFramework("Cocoa", .{});

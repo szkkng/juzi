@@ -1,4 +1,5 @@
 const std = @import("std");
+const apple_sdk = @import("../apple_sdk.zig");
 const juce_gui_basics = @import("juce_gui_basics.zig");
 
 pub const name = "juce_gui_extra";
@@ -30,6 +31,11 @@ pub fn addModule(
         .root = upstream.path("modules/juce_gui_extra"),
         .files = &.{"juce_gui_extra.mm"},
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_gui_extra);
+    }
+
     switch (target.result.os.tag) {
         .macos => {
             juce_gui_extra.linkFramework("WebKit", .{});

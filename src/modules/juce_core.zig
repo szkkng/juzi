@@ -1,4 +1,5 @@
 const std = @import("std");
+const apple_sdk = @import("../apple_sdk.zig");
 
 pub const name = "juce_core";
 
@@ -32,6 +33,10 @@ pub fn addModule(
             "juce_core/juce_core_CompilationTime.cpp",
         },
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_core);
+    }
 
     switch (target.result.os.tag) {
         .macos => {
