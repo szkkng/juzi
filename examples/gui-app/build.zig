@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const juzi_dep = b.dependency("juzi", .{});
+    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
     juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");

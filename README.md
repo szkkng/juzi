@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
     });
 
     // Initialize juzi setup using this module and the juzi dependency.
-    const juzi_dep = b.dependency("juzi", .{});
+    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
 
     // Configure JUCE-related preprocessor macros.
