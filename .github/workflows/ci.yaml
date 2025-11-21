@@ -9,11 +9,12 @@ on:
 
 jobs:
   build:
+    runs-on: macos-latest
     strategy:
       matrix:
         zig-version: [0.15.2]
-        os: [macos-latest]
-    runs-on: ${{ matrix.os }}
+        target: [x86_64-macos.10.15, aarch64-macos.11.0]
+        example: [console-app, gui-app, audio-plugin]
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -24,4 +25,5 @@ jobs:
           version: ${{ matrix.zig-version }}
 
       - name: Build
-        run: zig build --summary all
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
+        working-directory: examples/${{ matrix.example }}

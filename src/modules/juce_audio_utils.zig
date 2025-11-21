@@ -1,4 +1,5 @@
 const std = @import("std");
+const apple_sdk = @import("../apple_sdk.zig");
 const juce_audio_processors = @import("juce_audio_processors.zig");
 const juce_audio_formats = @import("juce_audio_formats.zig");
 const juce_audio_devices = @import("juce_audio_devices.zig");
@@ -40,6 +41,11 @@ pub fn addModule(
         .root = upstream.path("modules/juce_audio_utils"),
         .files = &.{"juce_audio_utils.mm"},
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_audio_utils);
+    }
+
     switch (target.result.os.tag) {
         .macos => {
             juce_audio_utils.linkFramework("CoreAudioKit", .{});

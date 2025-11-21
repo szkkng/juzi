@@ -1,4 +1,5 @@
 const std = @import("std");
+const apple_sdk = @import("../apple_sdk.zig");
 const juce_audio_basics = @import("juce_audio_basics.zig");
 
 pub const name = "juce_audio_formats";
@@ -30,6 +31,11 @@ pub fn addModule(
         .root = upstream.path("modules/juce_audio_formats"),
         .files = &.{"juce_audio_formats.mm"},
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        apple_sdk.addPaths(b, juce_audio_formats);
+    }
+
     switch (target.result.os.tag) {
         .macos => {
             juce_audio_formats.linkFramework("CoreAudio", .{});
