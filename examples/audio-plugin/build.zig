@@ -1,6 +1,7 @@
 const std = @import("std");
 const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
+const zcc = @import("compile_commands");
 
 const config = juzi.Setup.ProjectConfig{
     .product_name = "JuceZbs",
@@ -45,4 +46,11 @@ pub fn build(b: *std.Build) void {
     while (steps_it.next()) |step| {
         b.getInstallStep().dependOn(step.*);
     }
+
+    var targets = std.ArrayList(*std.Build.Step.Compile).empty;
+    var artifacts_it = plugin.artifacts.valueIterator();
+    while (artifacts_it.next()) |artifact| {
+        targets.append(b.allocator, artifact.*) catch @panic("OOM");
+    }
+    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
 }
