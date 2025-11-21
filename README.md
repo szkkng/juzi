@@ -91,6 +91,12 @@ To build:
 zig build
 ```
 
+## Generating `compile_commands.json`
+
+Zig doesn't currently support generating `compile_commands.json`.  
+A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
+See the examples directory for how to use it with juzi.
+
 ## Motivation
 
 - To better understand both the JUCE CMake build system and Zig's build system.
