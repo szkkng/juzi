@@ -41,9 +41,9 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(console_app);
 
     const run_step = b.step("run", "Run the app");
-    const gui_app_run = b.addRunArtifact(console_app);
-    gui_app_run.step.dependOn(b.getInstallStep());
-    run_step.dependOn(&gui_app_run.step);
+    const console_app_run = b.addRunArtifact(console_app);
+    console_app_run.step.dependOn(b.getInstallStep());
+    run_step.dependOn(&console_app_run.step);
 
     var targets = std.ArrayList(*std.Build.Step.Compile).empty;
     targets.append(b.allocator, console_app) catch @panic("OOM");
