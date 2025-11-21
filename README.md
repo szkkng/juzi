@@ -95,7 +95,7 @@ zig build
 
 Zig doesn't currently support generating `compile_commands.json`.  
 A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
-See the examples directory for how to use it with juzi.
+See the example projects in this repo for how to use it with juzi.
 
 ## Motivation
 
