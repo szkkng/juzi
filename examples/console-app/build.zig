@@ -1,6 +1,7 @@
 const std = @import("std");
 const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
+const zcc = @import("compile_commands");
 
 const config = juzi.Setup.ProjectConfig{
     .product_name = "Console App Example",
@@ -43,4 +44,8 @@ pub fn build(b: *std.Build) void {
     const gui_app_run = b.addRunArtifact(console_app);
     gui_app_run.step.dependOn(b.getInstallStep());
     run_step.dependOn(&gui_app_run.step);
+
+    var targets = std.ArrayList(*std.Build.Step.Compile).empty;
+    targets.append(b.allocator, console_app) catch @panic("OOM");
+    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
 }
