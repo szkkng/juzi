@@ -51,8 +51,8 @@ pub const ProjectConfig = struct {
 
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,
-binary_data: std.ArrayList([]const u8),
 juce_macros: std.ArrayList([]const u8),
+juce_binary_data: std.ArrayList(BinaryData),
 
 pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
     const upstream = juzi_dep.builder.dependency("upstream", .{});
@@ -61,8 +61,8 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
     return Setup{
         .root_module = root_module,
         .juzi_dep = juzi_dep,
-        .binary_data = .empty,
         .juce_macros = .empty,
+        .juce_binary_data = .empty,
     };
 }
 
@@ -72,13 +72,20 @@ pub const AddOptions = struct {
     flags: []const []const u8 = &.{},
 };
 
+pub const ConsoleApp = struct {
+    artifact: *std.Build.Step.Compile,
+    binary_data: ?*std.Build.Step.Compile = null,
+};
+
 pub fn addConsoleApp(
     self: Setup,
     options: AddOptions,
-) *std.Build.Step.Compile {
+) ConsoleApp {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
+    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+    var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
 
@@ -93,15 +100,24 @@ pub fn addConsoleApp(
     }
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
+    var juce_modules = std.ArrayList(JuceModule).empty;
+    for (options.juce_modules) |module| {
+        juce_modules.append(b.allocator, module) catch @panic("OOM");
+    }
+    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
+
     const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
         .target = target,
         .optimize = optimize,
-        .juce_modules = options.juce_modules,
+        .juce_modules = juce_modules.items,
     });
     for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
+
+    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
+    addFlagsToLinkObjects(juceaide.root_module, flags.items);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
@@ -110,22 +126,51 @@ pub fn addConsoleApp(
     console_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
+    if (self.juce_binary_data.items.len > 0) {
+        for (self.juce_binary_data.items) |bd| {
+            const binary_data_lib = addBinaryDataLib(b, .{
+                .target = target,
+                .optimize = optimize,
+                .juceaide = juceaide,
+                .binary_data = bd,
+            });
+            for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
+                self.root_module.addIncludePath(include_dir.path);
+            }
+            binary_data = binary_data_lib;
+            console_app.linkLibrary(binary_data_lib);
+        }
+    }
+
     if (target.result.os.tag.isDarwin()) {
         apple_sdk.addPaths(b, juce_modules_lib.root_module);
+        apple_sdk.addPaths(b, juceaide.root_module);
         apple_sdk.addPaths(b, console_app.root_module);
     }
 
-    return console_app;
+    return .{
+        .artifact = console_app,
+        .binary_data = binary_data,
+    };
 }
+
+pub const GuiApp = struct {
+    artifact: *std.Build.Step.Compile,
+    install_step: *std.Build.Step,
+    binary_data: ?*std.Build.Step.Compile = null,
+};
 
 pub fn addGuiApp(
     self: Setup,
     options: AddOptions,
-) *std.Build.Step.InstallArtifact {
+) GuiApp {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
     const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+    var artifact: ?*std.Build.Step.Compile = null;
+    var install_step: ?*std.Build.Step = null;
+    var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
 
@@ -167,6 +212,22 @@ pub fn addGuiApp(
     gui_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
+    if (self.juce_binary_data.items.len > 0) {
+        for (self.juce_binary_data.items) |bd| {
+            const binary_data_lib = addBinaryDataLib(b, .{
+                .target = target,
+                .optimize = optimize,
+                .juceaide = juceaide,
+                .binary_data = bd,
+            });
+            for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
+                self.root_module.addIncludePath(include_dir.path);
+            }
+            binary_data = binary_data_lib;
+            gui_app.linkLibrary(binary_data_lib);
+        }
+    }
+
     if (target.result.os.tag.isDarwin()) {
         apple_sdk.addPaths(b, juce_modules_lib.root_module);
         apple_sdk.addPaths(b, juceaide.root_module);
@@ -186,12 +247,19 @@ pub fn addGuiApp(
             const app_bundle_step = addInstallNib(b, upstream, product_name, .gui_app);
             install_gui_app.step.dependOn(&app_bundle_step.step);
 
-            return install_gui_app;
+            artifact = install_gui_app.artifact;
+            install_step = &install_gui_app.step;
         },
         // .windows => {
         // },
         else => @panic("Not implemented yet: only macOS is supported"),
     }
+
+    return .{
+        .artifact = artifact.?,
+        .install_step = install_step.?,
+        .binary_data = binary_data,
+    };
 }
 
 pub const Plugin = struct {
@@ -272,18 +340,20 @@ pub fn addPlugin(
     plugin_shared_lib.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
-    if (self.binary_data.items.len > 0) {
-        const binary_data_lib = addBinaryData(b, .{
-            .target = target,
-            .optimize = optimize,
-            .juceaide = juceaide,
-            .binary_data = self.binary_data.items,
-        });
-        for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
-            self.root_module.addIncludePath(include_dir.path);
+    if (self.juce_binary_data.items.len > 0) {
+        for (self.juce_binary_data.items) |bd| {
+            const binary_data_lib = addBinaryDataLib(b, .{
+                .target = target,
+                .optimize = optimize,
+                .juceaide = juceaide,
+                .binary_data = bd,
+            });
+            for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
+                self.root_module.addIncludePath(include_dir.path);
+            }
+            plugin.binary_data = binary_data_lib;
+            plugin_shared_lib.linkLibrary(binary_data_lib);
         }
-        plugin.binary_data = binary_data_lib;
-        plugin_shared_lib.linkLibrary(binary_data_lib);
     }
 
     if (target.result.os.tag.isDarwin()) {
@@ -418,6 +488,17 @@ pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
     self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
+pub const BinaryData = struct {
+    namespace: []const u8 = "BinaryData",
+    header_name: []const u8 = "BinaryData",
+    files: []const []const u8,
+};
+
+pub fn addBinaryData(self: *Setup, bd: BinaryData) void {
+    const b = self.root_module.owner;
+    self.juce_binary_data.append(b.allocator, bd) catch @panic("OOM");
+}
+
 fn getJuceCommonFlags(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -452,16 +533,16 @@ fn getJuceCommonFlags(
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
-const AddBinaryDataOptions = struct {
+const AddBinaryDataLibOptions = struct {
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     juceaide: *std.Build.Step.Compile,
-    binary_data: []const []const u8,
+    binary_data: BinaryData,
 };
 
-fn addBinaryData(
+fn addBinaryDataLib(
     b: *std.Build,
-    options: AddBinaryDataOptions,
+    options: AddBinaryDataLibOptions,
 ) *std.Build.Step.Compile {
     const binary_data_lib = b.addLibrary(.{
         .name = "binary_data",
@@ -473,12 +554,14 @@ fn addBinaryData(
     });
 
     const binary_data = options.binary_data;
-    const input_list_file = addInputFileList(b, binary_data);
+    const input_list_file = addInputFileList(b, binary_data.files);
 
-    var binary_data_files: std.ArrayList([]const u8) = .empty;
-    for (binary_data, 0..) |file, i| {
-        _ = file;
-        binary_data_files.append(b.allocator, b.fmt("{s}{d}.cpp", .{ "BinaryData", i + 1 })) catch @panic("OOM");
+    var binary_data_files = std.ArrayList([]const u8).empty;
+    for (binary_data.files, 0..) |_, i| {
+        binary_data_files.append(
+            b.allocator,
+            b.fmt("{s}{d}.cpp", .{ "BinaryData", i + 1 }),
+        ) catch @panic("OOM");
     }
 
     const output_dir = input_list_file.dirname();
@@ -487,8 +570,8 @@ fn addBinaryData(
 
     binary_data_cmd.addArgs(&.{
         "binarydata",
-        "BinaryData",
-        "BinaryData.h",
+        options.binary_data.namespace,
+        b.fmt("{s}.h", .{binary_data.header_name}),
     });
     // The fourth juceaide argument (the BinaryData output directory) is currently
     // passed as a relative path, which triggers the assertion
@@ -497,6 +580,7 @@ fn addBinaryData(
     // Is there a good way to provide an absolute path instead?
     binary_data_cmd.addDirectoryArg(output_dir);
     binary_data_cmd.addFileArg(input_list_file);
+    binary_data_cmd.has_side_effects = true;
     _ = binary_data_cmd.captureStdErr();
 
     binary_data_lib.root_module.addCSourceFiles(.{
