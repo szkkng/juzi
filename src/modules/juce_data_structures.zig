@@ -5,6 +5,7 @@ pub const name = "juce_data_structures";
 
 pub fn addModule(
     b: *std.Build,
+    upstream: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
@@ -12,7 +13,6 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const upstream = b.dependency("upstream", .{});
     const juce_data_structures = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
@@ -20,7 +20,7 @@ pub fn addModule(
         .imports = &.{
             .{
                 .name = juce_events.name,
-                .module = juce_events.addModule(b, target, optimize),
+                .module = juce_events.addModule(b, upstream, target, optimize),
             },
         },
     });

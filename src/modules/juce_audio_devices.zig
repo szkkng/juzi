@@ -7,6 +7,7 @@ pub const name = "juce_audio_devices";
 
 pub fn addModule(
     b: *std.Build,
+    upstream: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
@@ -14,7 +15,6 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const upstream = b.dependency("upstream", .{});
     const juce_audio_devices = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
@@ -22,11 +22,11 @@ pub fn addModule(
         .imports = &.{
             .{
                 .name = juce_audio_basics.name,
-                .module = juce_audio_basics.addModule(b, target, optimize),
+                .module = juce_audio_basics.addModule(b, upstream, target, optimize),
             },
             .{
                 .name = juce_events.name,
-                .module = juce_events.addModule(b, target, optimize),
+                .module = juce_events.addModule(b, upstream, target, optimize),
             },
         },
     });
