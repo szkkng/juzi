@@ -5,6 +5,7 @@ pub const name = "juce_core";
 
 pub fn addModule(
     b: *std.Build,
+    upstream: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) *std.Build.Module {
@@ -12,7 +13,6 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const upstream = b.dependency("upstream", .{});
     const juce_core = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
