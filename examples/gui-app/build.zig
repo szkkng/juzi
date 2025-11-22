@@ -44,18 +44,35 @@ pub fn build(b: *std.Build) void {
         b.fmt("\"{s}\"", .{zon.version}),
     );
 
+    // Configure embedded binary data here, similar to JUCE's add_binary_data.
+    // juzi_setup.addBinaryData(.{
+    //     .namespace = "JuziBinary",
+    //     .header_name = "JuziBinary",
+    //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
+    // });
+
     const gui_app = juzi_setup.addGuiApp(.{
         .juce_modules = &.{.juce_gui_extra},
         .config = config,
     });
-    b.getInstallStep().dependOn(&gui_app.step);
+    b.getInstallStep().dependOn(gui_app.install_step);
 
     const run_step = b.step("run", "Run the app");
     const gui_app_run = b.addRunArtifact(gui_app.artifact);
-    gui_app_run.step.dependOn(&gui_app.step);
+    gui_app_run.step.dependOn(gui_app.install_step);
     run_step.dependOn(&gui_app_run.step);
 
+    // Create a step that generates compile_commands.json.
+    // Running `zig build cdb` will write the file to the project root.
     var targets = std.ArrayList(*std.Build.Step.Compile).empty;
     targets.append(b.allocator, gui_app.artifact) catch @panic("OOM");
-    _ = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
+    const cdb_step = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
+    _ = cdb_step;
+
+    // If you configure binary data above, make the cdb step depend on the
+    // generated BinaryData target. Otherwise, compile_commands.json
+    // generation will fail.
+    // if (gui_app.binary_data) |bd| {
+    //     cdb_step.dependOn(&bd.step);
+    // }
 }

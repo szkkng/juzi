@@ -71,6 +71,13 @@ pub fn build(b: *std.Build) void {
     juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
 
+    // Configure embedded binary data here, similar to JUCE's add_binary_data.
+    // juzi_setup.addBinaryData(.{
+    //     .namespace = "JuziBinary",
+    //     .header_name = "JuziBinary",
+    //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
+    // });
+
     // After configuring juzi, add plugin targets for the selected formats.
     const plugin = juzi_setup.addPlugin(.{
         .juce_modules = &.{.juce_audio_utils},
