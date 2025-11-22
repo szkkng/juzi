@@ -1,12 +1,12 @@
 # juzi
 
-WIP: [JUCE](https://juce.com) using the [Zig](https://ziglang.org/) build system
+WIP: [Zig](https://ziglang.org/) build utilities for [JUCE](https://juce.com)
 
 Current limitations:
 
 - Only macOS builds are supported.
 - Plugin formats are limited to VST3 and Standalone.
-- Only the JUCE modules required for the included examples are implemented.
+- Only the JUCE modules required for the included examples are supported.
 - Many configuration fields are still missing.
 
 ## Usage
