@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const upstream = b.dependency("upstream", .{});
 
-    inline for (@import("src/root.zig").modules) |m| {
+    inline for (@import("src/modules.zig").modules) |m| {
         _ = m.addModule(b, upstream, target, optimize);
     }
 }
