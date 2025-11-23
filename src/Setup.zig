@@ -43,7 +43,7 @@ pub const Vst2Category = enum {
     kPlugCategGenerator,
 
     pub fn default(is_synth: bool) Vst2Category {
-        return if (is_synth) Vst2Category.kPlugCategSynth else Vst2Category.kPlugCategEffect;
+        return if (is_synth) .kPlugCategSynth else .kPlugCategEffect;
     }
 };
 
@@ -213,16 +213,9 @@ pub fn addConsoleApp(
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
     var juce_modules = std.ArrayList(JuceModule).empty;
@@ -298,16 +291,9 @@ pub fn addGuiApp(
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
     var juce_modules: std.ArrayList(JuceModule) = .empty;
@@ -407,17 +393,9 @@ pub fn addPlugin(
     };
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
-
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     const plugin_defs = getPluginDefs(b, options.config) catch @panic("OOM");
     flags.appendSlice(b.allocator, plugin_defs) catch @panic("OOM");
 
