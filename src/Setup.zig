@@ -1,6 +1,8 @@
 const std = @import("std");
 const Setup = @This();
 const darwin = @import("darwin.zig");
+const Juceaide = @import("Juceaide.zig");
+const BinaryData = Juceaide.BinaryData;
 pub const JuceModule = @import("modules.zig").JuceModule;
 
 // TODO: support more plugin formats
@@ -234,8 +236,13 @@ pub fn addConsoleApp(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
@@ -246,12 +253,7 @@ pub fn addConsoleApp(
 
     if (self.juce_binary_data.items.len > 0) {
         for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+            const binary_data_lib = juceaide.addBinaryData(b, bd);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -262,7 +264,7 @@ pub fn addConsoleApp(
 
     if (target.result.os.tag.isDarwin()) {
         darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, console_app.root_module);
     }
 
@@ -312,8 +314,13 @@ pub fn addGuiApp(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
@@ -325,12 +332,7 @@ pub fn addGuiApp(
 
     if (self.juce_binary_data.items.len > 0) {
         for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+            const binary_data_lib = juceaide.addBinaryData(b, bd);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -341,7 +343,7 @@ pub fn addGuiApp(
 
     if (target.result.os.tag.isDarwin()) {
         darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, gui_app.root_module);
     }
 
@@ -415,8 +417,13 @@ pub fn addPlugin(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
@@ -427,12 +434,7 @@ pub fn addPlugin(
 
     if (self.juce_binary_data.items.len > 0) {
         for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+            const binary_data_lib = juceaide.addBinaryData(b, bd);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -443,7 +445,7 @@ pub fn addPlugin(
 
     if (target.result.os.tag.isDarwin()) {
         darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, plugin_shared_lib.root_module);
     }
 
@@ -575,12 +577,6 @@ pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
     self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
-pub const BinaryData = struct {
-    namespace: []const u8 = "BinaryData",
-    header_name: []const u8 = "BinaryData",
-    files: []const []const u8,
-};
-
 pub fn addBinaryData(self: *Setup, bd: BinaryData) void {
     const b = self.root_module.owner;
     self.juce_binary_data.append(b.allocator, bd) catch @panic("OOM");
@@ -618,81 +614,6 @@ fn getJuceCommonFlags(
     flags.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
 
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
-}
-
-const AddBinaryDataLibOptions = struct {
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    juceaide: *std.Build.Step.Compile,
-    binary_data: BinaryData,
-};
-
-fn addBinaryDataLib(
-    b: *std.Build,
-    options: AddBinaryDataLibOptions,
-) *std.Build.Step.Compile {
-    const binary_data_lib = b.addLibrary(.{
-        .name = "binary_data",
-        .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
-            .link_libcpp = true,
-        }),
-    });
-
-    const binary_data = options.binary_data;
-    const input_list_file = addInputFileList(b, binary_data.files);
-
-    var binary_data_files = std.ArrayList([]const u8).empty;
-    for (binary_data.files, 0..) |_, i| {
-        binary_data_files.append(
-            b.allocator,
-            b.fmt("{s}{d}.cpp", .{ "BinaryData", i + 1 }),
-        ) catch @panic("OOM");
-    }
-
-    const output_dir = input_list_file.dirname();
-    const binary_data_cmd = b.addRunArtifact(options.juceaide);
-    binary_data_cmd.setCwd(output_dir);
-
-    binary_data_cmd.addArgs(&.{
-        "binarydata",
-        options.binary_data.namespace,
-        b.fmt("{s}.h", .{binary_data.header_name}),
-    });
-    // The fourth juceaide argument (the BinaryData output directory) is currently
-    // passed as a relative path, which triggers the assertion
-    // “JUCE Assertion failure in juce_File.cpp:219”. The build still works, so
-    // the output is suppressed here just to keep the logs clean.
-    // Is there a good way to provide an absolute path instead?
-    binary_data_cmd.addDirectoryArg(output_dir);
-    binary_data_cmd.addFileArg(input_list_file);
-    binary_data_cmd.has_side_effects = true;
-    _ = binary_data_cmd.captureStdErr();
-
-    binary_data_lib.root_module.addCSourceFiles(.{
-        .root = output_dir,
-        .files = binary_data_files.items,
-    });
-    binary_data_lib.root_module.addIncludePath(output_dir);
-    binary_data_lib.step.dependOn(&binary_data_cmd.step);
-
-    return binary_data_lib;
-}
-
-fn addInputFileList(
-    b: *std.Build,
-    input_files: []const []const u8,
-) std.Build.LazyPath {
-    const wf = b.addWriteFiles();
-    const input_file_name = "input_file_list";
-
-    for (input_files) |file| {
-        _ = wf.addCopyFile(b.path(file), file);
-    }
-
-    const path = wf.add(input_file_name, std.mem.join(b.allocator, "\n", input_files) catch @panic("OOM"));
-    return path;
 }
 
 const AddInstallModuleInfoOptions = struct {
@@ -866,32 +787,6 @@ fn addJuceModules(
     }
 
     return juce_modules_lib;
-}
-
-fn addJuceaide(
-    upstream: *std.Build.Dependency,
-    juce_modules_lib: *std.Build.Step.Compile,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Step.Compile {
-    const b = juce_modules_lib.step.owner;
-    const juceaide = b.addExecutable(.{
-        .name = "juceaide",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-            .link_libcpp = true,
-        }),
-    });
-    juceaide.root_module.linkLibrary(juce_modules_lib);
-    juceaide.root_module.addIncludePath(upstream.path("modules"));
-    juceaide.root_module.addIncludePath(upstream.path("extras/Build"));
-    juceaide.root_module.addCSourceFiles(.{
-        .root = upstream.path("extras/Build/juceaide"),
-        .files = &.{"Main.cpp"},
-    });
-
-    return juceaide;
 }
 
 fn getJuceModuleAvailableDefs(m: *std.Build.Module) []const []const u8 {

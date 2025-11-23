@@ -1,6 +1,7 @@
 const std = @import("std");
 const ProjectConfig = @import("../Setup.zig").ProjectConfig;
 const PluginFormat = @import("../Setup.zig").PluginFormat;
+const Juceaide = @import("../Juceaide.zig");
 
 // Describes the final product kind (app or plugin) and, if a plugin, its format.
 const ProductKind = union(enum) {
@@ -43,12 +44,12 @@ pub fn addInstallBundle(
 
 // Creates the install step for generating and installing the bundle's Info.plist.
 pub fn addInstallInfoPlist(
-    juceaide: *std.Build.Step.Compile,
+    juceaide: Juceaide,
     config: ProjectConfig,
     kind: ProductKind,
 ) *std.Build.Step.InstallFile {
-    const b = juceaide.step.owner;
-    const plist_cmd = b.addRunArtifact(juceaide);
+    const b = juceaide.artifact.root_module.owner;
+    const plist_cmd = b.addRunArtifact(juceaide.artifact);
     const input_info_file = generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
     plist_cmd.setCwd(input_info_file);
     plist_cmd.addArgs(&.{
@@ -73,12 +74,12 @@ pub fn addInstallInfoPlist(
 
 // Creates the install step for generating and installing the bundle's PkgInfo file.
 pub fn addInstallPkgInfo(
-    juceaide: *std.Build.Step.Compile,
+    juceaide: Juceaide,
     product_name: []const u8,
     kind: ProductKind,
 ) *std.Build.Step.InstallFile {
-    const b = juceaide.step.owner;
-    const pkginfo_cmd = b.addRunArtifact(juceaide);
+    const b = juceaide.artifact.root_module.owner;
+    const pkginfo_cmd = b.addRunArtifact(juceaide.artifact);
     pkginfo_cmd.addArgs(&.{
         "pkginfo",
         kind.juceaideIdentifier(),
