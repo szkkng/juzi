@@ -1,6 +1,6 @@
 const std = @import("std");
 const ProjectConfig = @import("../Setup.zig").ProjectConfig;
-const PluginFormat = @import("../Setup.zig").PluginFormat;
+const PluginFormat = @import("../plugin.zig").format.PluginFormat;
 const Juceaide = @import("../Juceaide.zig");
 
 // Describes the final product kind (app or plugin) and, if a plugin, its format.
