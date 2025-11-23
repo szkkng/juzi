@@ -28,6 +28,124 @@ pub const PluginFormat = enum {
     }
 };
 
+pub const Vst2Category = enum {
+    kPlugCategUnknown,
+    kPlugCategEffect,
+    kPlugCategSynth,
+    kPlugCategAnalysis,
+    kPlugCategMastering,
+    kPlugCategSpacializer,
+    kPlugCategRoomFx,
+    kPlugSurroundFx,
+    kPlugCategRestoration,
+    kPlugCategOfflineProcess,
+    kPlugCategShell,
+    kPlugCategGenerator,
+
+    pub fn default(is_synth: bool) Vst2Category {
+        return if (is_synth) .kPlugCategSynth else .kPlugCategEffect;
+    }
+};
+
+const Vst3Category = enum {
+    Fx,
+    Instrument,
+    Analyzer,
+    Delay,
+    Distortion,
+    Drum,
+    Dynamics,
+    EQ,
+    External,
+    Filter,
+    Generator,
+    Mastering,
+    Modulation,
+    Mono,
+    Network,
+    NoOfflineProcess,
+    OnlyOfflineProcess,
+    OnlyRT,
+    Pitch_Shift,
+    Restoration,
+    Reverb,
+    Sampler,
+    Spatial,
+    Stereo,
+    Surround,
+    Synth,
+    Tools,
+    Up_Downmix,
+
+    pub fn internalIdentifier(self: Vst3Category) []const u8 {
+        return switch (self) {
+            .Pitch_Shift => "Pitch Shift",
+            .Up_Downmix => "Up-Downmix",
+            else => @tagName(self),
+        };
+    }
+
+    // Returns a new list of categories with defaults applied.
+    // Ensures `.Fx` or `.Instrument` appears first if omitted, depending on `is_synth`.
+    pub fn withDefaults(
+        allocator: std.mem.Allocator,
+        exsiting_categories: []const Vst3Category,
+        is_synth: bool,
+    ) ![]const Vst3Category {
+        if (exsiting_categories.len == 0) {
+            return if (is_synth) &.{ .Instrument, .Synth } else &.{.Fx};
+        }
+
+        var categArray = std.ArrayList(Vst3Category).empty;
+
+        for (exsiting_categories) |category| {
+            try categArray.append(allocator, category);
+        }
+
+        const contains_instrument = std.mem.containsAtLeastScalar(
+            Vst3Category,
+            exsiting_categories,
+            1,
+            .Instrument,
+        );
+        const contains_fx = std.mem.containsAtLeastScalar(
+            Vst3Category,
+            exsiting_categories,
+            1,
+            .Fx,
+        );
+
+        if (!contains_instrument and !contains_fx) {
+            try categArray.insert(allocator, 0, if (is_synth) .Instrument else .Fx);
+        } else {
+            if (contains_instrument) {
+                const inst_index = std.mem.indexOf(Vst3Category, exsiting_categories, &.{.Instrument}).?;
+                const inst = categArray.orderedRemove(inst_index);
+                try categArray.insert(allocator, 0, inst);
+            }
+
+            if (contains_fx) {
+                const fx_index = std.mem.indexOf(Vst3Category, exsiting_categories, &.{.Fx}).?;
+                const fx = categArray.orderedRemove(fx_index);
+                try categArray.insert(allocator, 0, fx);
+            }
+        }
+
+        return try categArray.toOwnedSlice(allocator);
+    }
+
+    // Converts the category list into a `|`-separated VST3 category string.
+    // e.g. `.{ .Fx, .Reverb }` → "Fx|Reverb"
+    pub fn join(allocator: std.mem.Allocator, categories: []const Vst3Category) ![]const u8 {
+        var categoryStrings = std.ArrayList([]const u8).empty;
+        defer categoryStrings.deinit(allocator);
+        for (categories) |category| {
+            try categoryStrings.append(allocator, category.internalIdentifier());
+        }
+        return try std.mem.join(allocator, "|", categoryStrings.items);
+    }
+};
+
 // TODO: add more fields
 // https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_target
 pub const ProjectConfig = struct {
@@ -40,13 +158,20 @@ pub const ProjectConfig = struct {
     company_email: []const u8 = "",
     bundle_id: []const u8 = "com.yourcompany.product",
     plugin_manufacturer_code: []const u8 = "Manu",
-    plugin_code: []const u8 = "Jzbs",
+    plugin_code: ?[]const u8 = null,
     formats: []const PluginFormat = &.{},
+    description: ?[]const u8 = null,
     // copy_plugin_after_build: ?bool = false,
     is_synth: bool = false,
     is_midi_effect: bool = false,
+    needs_midi_output: bool = false,
+    needs_midi_input: bool = false,
     editor_wants_keyboard_focus: bool = false,
     vst3_auto_manifest: bool = true,
+    vst2_category: ?Vst2Category = null,
+    vst3_categories: ?[]const Vst3Category = null,
+    vst_num_midi_ins: u8 = 16,
+    vst_num_midi_outs: u8 = 16,
 };
 
 juzi_dep: *std.Build.Dependency,
@@ -88,16 +213,9 @@ pub fn addConsoleApp(
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
     var juce_modules = std.ArrayList(JuceModule).empty;
@@ -173,16 +291,9 @@ pub fn addGuiApp(
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
     var juce_modules: std.ArrayList(JuceModule) = .empty;
@@ -282,37 +393,11 @@ pub fn addPlugin(
     };
 
     var flags = std.ArrayList([]const u8).empty;
-
-    for (getJuceCommonFlags(b, target, optimize)) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (options.flags) |flag| {
-        flags.append(b.allocator, flag) catch @panic("OOM");
-    }
-    for (self.juce_macros.items) |macro| {
-        flags.append(b.allocator, macro) catch @panic("OOM");
-    }
-
-    const config = options.config;
-    // TODO: add more JUCE plugin macros and clean up
-    flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_Manufacturer=\"{s}\"", .{config.company_name})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerEmail=\"{s}\"", .{config.company_email})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerWebsite=\"{s}\"", .{config.company_website})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerCode=\'{s}\'", .{config.plugin_manufacturer_code})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_PluginCode=\'{s}\'", .{config.plugin_code})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_ProducesMidiOutput={d}", .{0})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_EditorRequiresKeyboardFocus={d}", .{@intFromBool(config.editor_wants_keyboard_focus)})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_VSTUniqueID={s}", .{"JucePlugin_PluginCode"})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_Name=\"{s}\"", .{config.plugin_name orelse config.product_name})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJuceProduct_Name=\"{s}\"", .{config.product_name})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_WantsMidiInput={d}", .{0})) catch @panic("OOM");
-
-    const versionCode = semanticVersionToVersionCode(b, config.version) catch @panic("invalid version");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_VersionCode={s}", .{versionCode})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_Version={s}", .{config.version})) catch @panic("OOM");
-    flags.append(b.allocator, b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version})) catch @panic("OOM");
+    flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
+    const plugin_defs = getPluginDefs(b, options.config) catch @panic("OOM");
+    flags.appendSlice(b.allocator, plugin_defs) catch @panic("OOM");
 
     var juce_modules: std.ArrayList(JuceModule) = .empty;
     for (options.juce_modules) |module| {
@@ -361,6 +446,8 @@ pub fn addPlugin(
         apple_sdk.addPaths(b, juceaide.root_module);
         apple_sdk.addPaths(b, plugin_shared_lib.root_module);
     }
+
+    const config = options.config;
 
     for (config.formats) |format| {
         switch (format) {
@@ -669,6 +756,66 @@ fn addInstallModuleInfo(
     return install_module_info;
 }
 
+fn getPluginDefs(b: *std.Build, config: ProjectConfig) ![]const []const u8 {
+    var flags = std.ArrayList([]const u8).empty;
+
+    try flags.append(b.allocator, b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerCode=0x{x}", .{config.plugin_manufacturer_code}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_Manufacturer=\"{s}\"", .{config.company_name}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerWebsite=\"{s}\"", .{config.company_website}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerEmail=\"{s}\"", .{config.company_email}));
+
+    const plugin_code = config.plugin_code orelse makeValid4cc(b);
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_PluginCode=0x{x}", .{plugin_code}));
+
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_ProducesMidiOutput={d}", .{@intFromBool(config.needs_midi_output)}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_WantsMidiInput={d}", .{@intFromBool(config.needs_midi_input)}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_EditorRequiresKeyboardFocus={d}", .{@intFromBool(config.editor_wants_keyboard_focus)}));
+
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_Name=\"{s}\"", .{config.plugin_name orelse config.product_name}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_Desc=\"{s}\"", .{config.description orelse config.product_name}));
+
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_Version={s}", .{config.version}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version}));
+    const version_code = try semanticVersionToVersionCode(b, config.version);
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VersionCode={s}", .{version_code}));
+
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTUniqueID={s}", .{"JucePlugin_PluginCode"}));
+
+    const vst_category = config.vst2_category orelse Vst2Category.default(config.is_synth);
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTCategory={s}", .{@tagName(vst_category)}));
+    const vst3_categories = try Vst3Category.withDefaults(b.allocator, config.vst3_categories orelse &.{}, config.is_synth);
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_Vst3Category=\"{s}\"", .{try Vst3Category.join(b.allocator, vst3_categories)}));
+
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiInputs={d}", .{config.vst_num_midi_ins}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiOutputs={d}", .{config.vst_num_midi_outs}));
+
+    // TODO: add more JUCE plugin macros
+    // JucePlugin_AUMainType
+    // JucePlugin_AUSubType
+    // JucePlugin_AUExportPrefix
+    // JucePlugin_AUExportPrefixQuoted
+    // JucePlugin_AUManufacturerCode
+
+    // JucePlugin_AAXIdentifier
+    // JucePlugin_AAXManufacturerCode
+    // JucePlugin_AAXProductId
+    // JucePlugin_AAXCategory
+    // JucePlugin_AAXDisableBypass
+    // JucePlugin_AAXDisableMultiMono
+
+    // JucePlugin_Enable_ARA
+    // JucePlugin_ARAFactoryID
+    // JucePlugin_ARADocumentArchiveID
+    // JucePlugin_ARACompatibleArchiveIDs
+    // JucePlugin_ARAContentTypes
+    // JucePlugin_ARATransformationFlags
+
+    return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
+}
+
 fn getJuceStandardDefs(
     b: *std.Build,
     optimize: std.builtin.OptimizeMode,
@@ -970,6 +1117,19 @@ fn updateFlags(T: type, b: *std.Build, c_source_file: *T, flags: []const []const
         flags,
     }) catch @panic("OOM");
     c_source_file.flags = combined;
+}
+
+fn makeValid4cc(b: *std.Build) []const u8 {
+    var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+    const random = prng.random();
+    var result: [4]u8 = undefined;
+    for (0..4) |i| {
+        result[i] = switch (i) {
+            0 => 'A' + @as(u8, random.uintLessThan(u8, 26)),
+            else => 'a' + @as(u8, random.uintLessThan(u8, 26)),
+        };
+    }
+    return b.dupe(result[0..]);
 }
 
 fn semanticVersionToVersionCode(b: *std.Build, ver: []const u8) ![]const u8 {
