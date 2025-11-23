@@ -3,10 +3,12 @@ const Setup = @This();
 const darwin = @import("darwin.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
-const plugin = @import("plugin.zig");
-const PluginFormat = plugin.format.PluginFormat;
-const Vst2Category = plugin.Vst2Category;
-const Vst3Category = plugin.Vst3Category;
+const Vst3Manifest = @import("plugin/vst3_manifest.zig");
+const PluginMacros = @import("plugin/macros.zig");
+
+pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
+pub const Vst2Category = @import("plugin/category.zig").Vst2Category;
+pub const Vst3Category = @import("plugin/category.zig").Vst3Category;
 pub const JuceModule = @import("modules.zig").JuceModule;
 
 // TODO: add more fields
@@ -259,8 +261,8 @@ pub fn addPlugin(
     flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
     flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
     flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    const macros = plugin.macros.getPluginMacros(b, options.config) catch @panic("OOM");
-    flags.appendSlice(b.allocator, macros) catch @panic("OOM");
+    const plugin_macros = PluginMacros.getPluginMacros(b, options.config) catch @panic("OOM");
+    flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
     var juce_modules: std.ArrayList(JuceModule) = .empty;
     for (options.juce_modules) |module| {
@@ -361,7 +363,7 @@ pub fn addPlugin(
                 vst3_step.dependOn(&install_pkginfo.step);
 
                 if (config.vst3_auto_manifest) {
-                    const install_module_info = plugin.vst3_manifest.addInstallModuleInfo(
+                    const install_module_info = Vst3Manifest.addInstallModuleInfo(
                         b,
                         upstream,
                         vst3.name,
