@@ -1,5 +1,5 @@
 const std = @import("std");
-const apple_sdk = @import("../apple_sdk.zig");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_data_structures = @import("juce_data_structures.zig");
 const juce_graphics = @import("juce_graphics.zig");
 
@@ -32,7 +32,7 @@ pub fn addModule(
     });
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_gui_basics);
+        darwin_sdk.addPaths(b, juce_gui_basics);
     }
 
     juce_gui_basics.addIncludePath(upstream.path("modules"));

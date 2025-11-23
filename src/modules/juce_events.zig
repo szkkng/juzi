@@ -1,5 +1,5 @@
 const std = @import("std");
-const apple_sdk = @import("../apple_sdk.zig");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_core = @import("juce_core.zig");
 
 pub const name = "juce_events";
@@ -33,7 +33,7 @@ pub fn addModule(
     });
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_events);
+        darwin_sdk.addPaths(b, juce_events);
     }
 
     return juce_events;

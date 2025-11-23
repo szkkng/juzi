@@ -1,5 +1,5 @@
 const std = @import("std");
-const apple_sdk = @import("../apple_sdk.zig");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_audio_basics = @import("juce_audio_basics.zig");
 
 pub const name = "juce_audio_formats";
@@ -33,7 +33,7 @@ pub fn addModule(
     });
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_audio_formats);
+        darwin_sdk.addPaths(b, juce_audio_formats);
     }
 
     switch (target.result.os.tag) {

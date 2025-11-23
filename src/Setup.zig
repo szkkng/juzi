@@ -1,150 +1,15 @@
 const std = @import("std");
 const Setup = @This();
-const apple_sdk = @import("apple_sdk.zig");
-pub const JuceModule = @import("root.zig").JuceModule;
+const darwin = @import("darwin.zig");
+const Juceaide = @import("Juceaide.zig");
+const BinaryData = @import("BinaryData.zig");
+const Vst3Manifest = @import("plugin/vst3_manifest.zig");
+const PluginMacros = @import("plugin/macros.zig");
 
-// TODO: support more plugin formats
-pub const PluginFormat = enum {
-    vst3,
-    standalone,
-    // vst,
-    // au,
-    // auv3,
-    // aax,
-    // lv2,
-    // unity,
-
-    pub fn internalIdentifier(self: PluginFormat) []const u8 {
-        return switch (self) {
-            .vst3 => "VST3",
-            .standalone => "Standalone Plugin",
-            // .vst => "VST",
-            // .au => "AU",
-            // .auv3 => "AUv3 AppExtension",
-            // .aax => "AAX",
-            // .lv2 => "LV2",
-            // .unity => "Unity Plugin",
-        };
-    }
-};
-
-pub const Vst2Category = enum {
-    kPlugCategUnknown,
-    kPlugCategEffect,
-    kPlugCategSynth,
-    kPlugCategAnalysis,
-    kPlugCategMastering,
-    kPlugCategSpacializer,
-    kPlugCategRoomFx,
-    kPlugSurroundFx,
-    kPlugCategRestoration,
-    kPlugCategOfflineProcess,
-    kPlugCategShell,
-    kPlugCategGenerator,
-
-    pub fn default(is_synth: bool) Vst2Category {
-        return if (is_synth) .kPlugCategSynth else .kPlugCategEffect;
-    }
-};
-
-const Vst3Category = enum {
-    Fx,
-    Instrument,
-    Analyzer,
-    Delay,
-    Distortion,
-    Drum,
-    Dynamics,
-    EQ,
-    External,
-    Filter,
-    Generator,
-    Mastering,
-    Modulation,
-    Mono,
-    Network,
-    NoOfflineProcess,
-    OnlyOfflineProcess,
-    OnlyRT,
-    Pitch_Shift,
-    Restoration,
-    Reverb,
-    Sampler,
-    Spatial,
-    Stereo,
-    Surround,
-    Synth,
-    Tools,
-    Up_Downmix,
-
-    pub fn internalIdentifier(self: Vst3Category) []const u8 {
-        return switch (self) {
-            .Pitch_Shift => "Pitch Shift",
-            .Up_Downmix => "Up-Downmix",
-            else => @tagName(self),
-        };
-    }
-
-    // Returns a new list of categories with defaults applied.
-    // Ensures `.Fx` or `.Instrument` appears first if omitted, depending on `is_synth`.
-    pub fn withDefaults(
-        allocator: std.mem.Allocator,
-        exsiting_categories: []const Vst3Category,
-        is_synth: bool,
-    ) ![]const Vst3Category {
-        if (exsiting_categories.len == 0) {
-            return if (is_synth) &.{ .Instrument, .Synth } else &.{.Fx};
-        }
-
-        var categArray = std.ArrayList(Vst3Category).empty;
-
-        for (exsiting_categories) |category| {
-            try categArray.append(allocator, category);
-        }
-
-        const contains_instrument = std.mem.containsAtLeastScalar(
-            Vst3Category,
-            exsiting_categories,
-            1,
-            .Instrument,
-        );
-        const contains_fx = std.mem.containsAtLeastScalar(
-            Vst3Category,
-            exsiting_categories,
-            1,
-            .Fx,
-        );
-
-        if (!contains_instrument and !contains_fx) {
-            try categArray.insert(allocator, 0, if (is_synth) .Instrument else .Fx);
-        } else {
-            if (contains_instrument) {
-                const inst_index = std.mem.indexOf(Vst3Category, exsiting_categories, &.{.Instrument}).?;
-                const inst = categArray.orderedRemove(inst_index);
-                try categArray.insert(allocator, 0, inst);
-            }
-
-            if (contains_fx) {
-                const fx_index = std.mem.indexOf(Vst3Category, exsiting_categories, &.{.Fx}).?;
-                const fx = categArray.orderedRemove(fx_index);
-                try categArray.insert(allocator, 0, fx);
-            }
-        }
-
-        return try categArray.toOwnedSlice(allocator);
-    }
-
-    // Converts the category list into a `|`-separated VST3 category string.
-    // e.g. `.{ .Fx, .Reverb }` → "Fx|Reverb"
-    pub fn join(allocator: std.mem.Allocator, categories: []const Vst3Category) ![]const u8 {
-        var categoryStrings = std.ArrayList([]const u8).empty;
-        defer categoryStrings.deinit(allocator);
-        for (categories) |category| {
-            try categoryStrings.append(allocator, category.internalIdentifier());
-        }
-        return try std.mem.join(allocator, "|", categoryStrings.items);
-    }
-};
+pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
+pub const Vst2Category = @import("plugin/category.zig").Vst2Category;
+pub const Vst3Category = @import("plugin/category.zig").Vst3Category;
+pub const JuceModule = @import("modules.zig").JuceModule;
 
 // TODO: add more fields
 // https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_target
@@ -177,7 +42,7 @@ pub const ProjectConfig = struct {
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
-juce_binary_data: std.ArrayList(BinaryData),
+binary_data: std.ArrayList(BinaryData.CreateOptions),
 
 pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
     const upstream = juzi_dep.builder.dependency("upstream", .{});
@@ -187,7 +52,7 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
         .root_module = root_module,
         .juzi_dep = juzi_dep,
         .juce_macros = .empty,
-        .juce_binary_data = .empty,
+        .binary_data = .empty,
     };
 }
 
@@ -234,8 +99,13 @@ pub fn addConsoleApp(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
@@ -244,14 +114,9 @@ pub fn addConsoleApp(
     console_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |opts| {
+            const binary_data_lib = BinaryData.create(juceaide, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -261,9 +126,9 @@ pub fn addConsoleApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_modules_lib.root_module);
-        apple_sdk.addPaths(b, juceaide.root_module);
-        apple_sdk.addPaths(b, console_app.root_module);
+        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
+        darwin.sdk.addPaths(b, console_app.root_module);
     }
 
     return .{
@@ -312,8 +177,13 @@ pub fn addGuiApp(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
@@ -323,14 +193,9 @@ pub fn addGuiApp(
     gui_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |opts| {
+            const binary_data_lib = BinaryData.create(juceaide, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -340,22 +205,22 @@ pub fn addGuiApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_modules_lib.root_module);
-        apple_sdk.addPaths(b, juceaide.root_module);
-        apple_sdk.addPaths(b, gui_app.root_module);
+        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
+        darwin.sdk.addPaths(b, gui_app.root_module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            const install_gui_app = addInstallBundle(gui_app, .gui_app);
+            const install_gui_app = darwin.bundle.addInstallBundle(gui_app, .gui_app);
 
-            const install_plist = addInstallInfoPlist(juceaide, options.config, .gui_app);
+            const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .gui_app);
             install_gui_app.step.dependOn(&install_plist.step);
 
-            const install_pkginfo = addInstallPkgInfo(juceaide, product_name, .gui_app);
+            const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, product_name, .gui_app);
             install_gui_app.step.dependOn(&install_pkginfo.step);
 
-            const app_bundle_step = addInstallNib(b, upstream, product_name, .gui_app);
+            const app_bundle_step = darwin.bundle.addInstallNib(b, upstream, product_name, .gui_app);
             install_gui_app.step.dependOn(&app_bundle_step.step);
 
             artifact = install_gui_app.artifact;
@@ -387,7 +252,7 @@ pub fn addPlugin(
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
     const upstream = self.juzi_dep.builder.dependency("upstream", .{});
-    var plugin: Plugin = .{
+    var result: Plugin = .{
         .artifacts = .init(b.allocator),
         .install_steps = .init(b.allocator),
     };
@@ -396,8 +261,8 @@ pub fn addPlugin(
     flags.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
     flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
     flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    const plugin_defs = getPluginDefs(b, options.config) catch @panic("OOM");
-    flags.appendSlice(b.allocator, plugin_defs) catch @panic("OOM");
+    const plugin_macros = PluginMacros.getPluginMacros(b, options.config) catch @panic("OOM");
+    flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
     var juce_modules: std.ArrayList(JuceModule) = .empty;
     for (options.juce_modules) |module| {
@@ -415,8 +280,13 @@ pub fn addPlugin(
     }
     propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
 
-    const juceaide = addJuceaide(upstream, juce_modules_lib, target, optimize);
-    addFlagsToLinkObjects(juceaide.root_module, flags.items);
+    const juceaide = Juceaide.create(b, .{
+        .upstream = upstream,
+        .target = target,
+        .optimize = optimize,
+        .juce_modules_lib = juce_modules_lib,
+    });
+    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
@@ -425,26 +295,21 @@ pub fn addPlugin(
     plugin_shared_lib.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = addBinaryDataLib(b, .{
-                .target = target,
-                .optimize = optimize,
-                .juceaide = juceaide,
-                .binary_data = bd,
-            });
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |bd_opts| {
+            const binary_data_lib = BinaryData.create(juceaide, bd_opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
-            plugin.binary_data = binary_data_lib;
+            result.binary_data = binary_data_lib;
             plugin_shared_lib.linkLibrary(binary_data_lib);
         }
     }
 
     if (target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, juce_modules_lib.root_module);
-        apple_sdk.addPaths(b, juceaide.root_module);
-        apple_sdk.addPaths(b, plugin_shared_lib.root_module);
+        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
+        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
+        darwin.sdk.addPaths(b, plugin_shared_lib.root_module);
     }
 
     const config = options.config;
@@ -468,7 +333,7 @@ pub fn addPlugin(
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
-                    apple_sdk.addPaths(b, vst3_module);
+                    darwin.sdk.addPaths(b, vst3_module);
                 }
 
                 const vst3_step = b.step("vst3", "Build VST3");
@@ -484,21 +349,21 @@ pub fn addPlugin(
                 });
                 vst3.linkLibrary(plugin_shared_lib);
 
-                const install_vst3 = addInstallBundle(vst3, .{ .plugin = .vst3 });
-                const adhoc_sign_run = addAdhocCodeSign(
+                const install_vst3 = darwin.bundle.addInstallBundle(vst3, .{ .plugin = .vst3 });
+                const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
                     b,
                     b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
                 );
                 adhoc_sign_run.step.dependOn(&install_vst3.step);
                 vst3_step.dependOn(&adhoc_sign_run.step);
 
-                const install_plist = addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
-                const install_pkginfo = addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
+                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
+                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
                 vst3_step.dependOn(&install_plist.step);
                 vst3_step.dependOn(&install_pkginfo.step);
 
                 if (config.vst3_auto_manifest) {
-                    const install_module_info = addInstallModuleInfo(
+                    const install_module_info = Vst3Manifest.addInstallModuleInfo(
                         b,
                         upstream,
                         vst3.name,
@@ -511,8 +376,8 @@ pub fn addPlugin(
                     vst3_step.dependOn(&install_module_info.step);
                 }
 
-                plugin.artifacts.put(.vst3, vst3) catch @panic("OOM");
-                plugin.install_steps.put(.vst3, vst3_step) catch @panic("OOM");
+                result.artifacts.put(.vst3, vst3) catch @panic("OOM");
+                result.install_steps.put(.vst3, vst3_step) catch @panic("OOM");
             },
             .standalone => {
                 flags.append(b.allocator, "-DJucePlugin_Build_Standalone=1") catch @panic("OOM");
@@ -531,7 +396,7 @@ pub fn addPlugin(
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
-                    apple_sdk.addPaths(b, standalone_module);
+                    darwin.sdk.addPaths(b, standalone_module);
                 }
 
                 const standalone = b.addExecutable(.{
@@ -542,10 +407,10 @@ pub fn addPlugin(
 
                 const standalone_step = b.step("standalone", "Build standalone");
 
-                const install_standalone = addInstallBundle(standalone, .{ .plugin = .standalone });
-                const install_plist = addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
-                const install_pkginfo = addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
-                const install_nib = addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
+                const install_standalone = darwin.bundle.addInstallBundle(standalone, .{ .plugin = .standalone });
+                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
+                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
+                const install_nib = darwin.bundle.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
 
                 standalone_step.dependOn(&install_standalone.step);
                 standalone.step.dependOn(&install_plist.step);
@@ -557,14 +422,14 @@ pub fn addPlugin(
                 const run_step = b.step("run", "Run standalone");
                 run_step.dependOn(&run_cmd.step);
 
-                plugin.artifacts.put(.standalone, standalone) catch @panic("OOM");
-                plugin.install_steps.put(.standalone, standalone_step) catch @panic("OOM");
+                result.artifacts.put(.standalone, standalone) catch @panic("OOM");
+                result.install_steps.put(.standalone, standalone_step) catch @panic("OOM");
             },
             // else => @panic("Not implemented yet"),
         }
     }
 
-    return plugin;
+    return result;
 }
 
 // Similar to `std.Build.Module.addCMacro`, but for defining
@@ -575,15 +440,9 @@ pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
     self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
-pub const BinaryData = struct {
-    namespace: []const u8 = "BinaryData",
-    header_name: []const u8 = "BinaryData",
-    files: []const []const u8,
-};
-
-pub fn addBinaryData(self: *Setup, bd: BinaryData) void {
+pub fn addBinaryData(self: *Setup, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
-    self.juce_binary_data.append(b.allocator, bd) catch @panic("OOM");
+    self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
 fn getJuceCommonFlags(
@@ -616,202 +475,6 @@ fn getJuceCommonFlags(
     // Disable this error as a workaround to allow JUCE to build.
     // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
     flags.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
-
-    return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
-}
-
-const AddBinaryDataLibOptions = struct {
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    juceaide: *std.Build.Step.Compile,
-    binary_data: BinaryData,
-};
-
-fn addBinaryDataLib(
-    b: *std.Build,
-    options: AddBinaryDataLibOptions,
-) *std.Build.Step.Compile {
-    const binary_data_lib = b.addLibrary(.{
-        .name = "binary_data",
-        .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
-            .link_libcpp = true,
-        }),
-    });
-
-    const binary_data = options.binary_data;
-    const input_list_file = addInputFileList(b, binary_data.files);
-
-    var binary_data_files = std.ArrayList([]const u8).empty;
-    for (binary_data.files, 0..) |_, i| {
-        binary_data_files.append(
-            b.allocator,
-            b.fmt("{s}{d}.cpp", .{ "BinaryData", i + 1 }),
-        ) catch @panic("OOM");
-    }
-
-    const output_dir = input_list_file.dirname();
-    const binary_data_cmd = b.addRunArtifact(options.juceaide);
-    binary_data_cmd.setCwd(output_dir);
-
-    binary_data_cmd.addArgs(&.{
-        "binarydata",
-        options.binary_data.namespace,
-        b.fmt("{s}.h", .{binary_data.header_name}),
-    });
-    // The fourth juceaide argument (the BinaryData output directory) is currently
-    // passed as a relative path, which triggers the assertion
-    // “JUCE Assertion failure in juce_File.cpp:219”. The build still works, so
-    // the output is suppressed here just to keep the logs clean.
-    // Is there a good way to provide an absolute path instead?
-    binary_data_cmd.addDirectoryArg(output_dir);
-    binary_data_cmd.addFileArg(input_list_file);
-    binary_data_cmd.has_side_effects = true;
-    _ = binary_data_cmd.captureStdErr();
-
-    binary_data_lib.root_module.addCSourceFiles(.{
-        .root = output_dir,
-        .files = binary_data_files.items,
-    });
-    binary_data_lib.root_module.addIncludePath(output_dir);
-    binary_data_lib.step.dependOn(&binary_data_cmd.step);
-
-    return binary_data_lib;
-}
-
-fn addInputFileList(
-    b: *std.Build,
-    input_files: []const []const u8,
-) std.Build.LazyPath {
-    const wf = b.addWriteFiles();
-    const input_file_name = "input_file_list";
-
-    for (input_files) |file| {
-        _ = wf.addCopyFile(b.path(file), file);
-    }
-
-    const path = wf.add(input_file_name, std.mem.join(b.allocator, "\n", input_files) catch @panic("OOM"));
-    return path;
-}
-
-fn addAdhocCodeSign(
-    b: *std.Build,
-    artifact_path: []const u8,
-) *std.Build.Step.Run {
-    const adhoc_sign_cmd = b.addSystemCommand(&.{
-        "codesign",
-        "--sign",
-        "-",
-        "--force",
-        artifact_path,
-    });
-    adhoc_sign_cmd.has_side_effects = true;
-    _ = adhoc_sign_cmd.captureStdErr();
-    return adhoc_sign_cmd;
-}
-
-const AddInstallModuleInfoOptions = struct {
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    flags: []const []const u8 = &.{},
-};
-
-// Creates the install step for generating and installing the VST3 moduleinfo.json file.
-fn addInstallModuleInfo(
-    b: *std.Build,
-    upstream: *std.Build.Dependency,
-    product_name: []const u8,
-    options: AddInstallModuleInfoOptions,
-) *std.Build.Step.InstallFile {
-    const manifest_helper = b.addExecutable(.{
-        .name = "juce_vst3_manifest_helper",
-        .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
-            .link_libcpp = true,
-        }),
-    });
-    manifest_helper.root_module.addIncludePath(upstream.path("modules"));
-    manifest_helper.root_module.addIncludePath(upstream.path("modules/juce_audio_processors/format_types/VST3_SDK"));
-    manifest_helper.root_module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_audio_plugin_client/VST3"),
-        .files = &.{"juce_VST3ManifestHelper.mm"},
-        .flags = options.flags,
-    });
-    manifest_helper.root_module.linkFramework("Foundation", .{});
-
-    const manifest_helper_cmd = b.addRunArtifact(manifest_helper);
-    const out_module_info = manifest_helper_cmd.captureStdOut();
-    const install_module_info = b.addInstallFileWithDir(
-        out_module_info,
-        .prefix,
-        b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
-    );
-
-    if (options.target.result.os.tag.isDarwin()) {
-        apple_sdk.addPaths(b, manifest_helper.root_module);
-    }
-
-    return install_module_info;
-}
-
-fn getPluginDefs(b: *std.Build, config: ProjectConfig) ![]const []const u8 {
-    var flags = std.ArrayList([]const u8).empty;
-
-    try flags.append(b.allocator, b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerCode=0x{x}", .{config.plugin_manufacturer_code}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_Manufacturer=\"{s}\"", .{config.company_name}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerWebsite=\"{s}\"", .{config.company_website}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerEmail=\"{s}\"", .{config.company_email}));
-
-    const plugin_code = config.plugin_code orelse makeValid4cc(b);
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_PluginCode=0x{x}", .{plugin_code}));
-
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_ProducesMidiOutput={d}", .{@intFromBool(config.needs_midi_output)}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_WantsMidiInput={d}", .{@intFromBool(config.needs_midi_input)}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_EditorRequiresKeyboardFocus={d}", .{@intFromBool(config.editor_wants_keyboard_focus)}));
-
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_Name=\"{s}\"", .{config.plugin_name orelse config.product_name}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_Desc=\"{s}\"", .{config.description orelse config.product_name}));
-
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_Version={s}", .{config.version}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version}));
-    const version_code = try semanticVersionToVersionCode(b, config.version);
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VersionCode={s}", .{version_code}));
-
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTUniqueID={s}", .{"JucePlugin_PluginCode"}));
-
-    const vst_category = config.vst2_category orelse Vst2Category.default(config.is_synth);
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTCategory={s}", .{@tagName(vst_category)}));
-    const vst3_categories = try Vst3Category.withDefaults(b.allocator, config.vst3_categories orelse &.{}, config.is_synth);
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_Vst3Category=\"{s}\"", .{try Vst3Category.join(b.allocator, vst3_categories)}));
-
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiInputs={d}", .{config.vst_num_midi_ins}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiOutputs={d}", .{config.vst_num_midi_outs}));
-
-    // TODO: add more JUCE plugin macros
-    // JucePlugin_AUMainType
-    // JucePlugin_AUSubType
-    // JucePlugin_AUExportPrefix
-    // JucePlugin_AUExportPrefixQuoted
-    // JucePlugin_AUManufacturerCode
-
-    // JucePlugin_AAXIdentifier
-    // JucePlugin_AAXManufacturerCode
-    // JucePlugin_AAXProductId
-    // JucePlugin_AAXCategory
-    // JucePlugin_AAXDisableBypass
-    // JucePlugin_AAXDisableMultiMono
-
-    // JucePlugin_Enable_ARA
-    // JucePlugin_ARAFactoryID
-    // JucePlugin_ARADocumentArchiveID
-    // JucePlugin_ARACompatibleArchiveIDs
-    // JucePlugin_ARAContentTypes
-    // JucePlugin_ARATransformationFlags
 
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
@@ -884,180 +547,6 @@ fn addJuceModules(
     return juce_modules_lib;
 }
 
-// Describes the final product kind (app or plugin) and, if a plugin, its format.
-const ProductKind = union(enum) {
-    console_app,
-    gui_app,
-    plugin: PluginFormat,
-
-    pub fn juceaideIdentifier(self: ProductKind) []const u8 {
-        return switch (self) {
-            .console_app => "ConsoleApp",
-            .gui_app => "App",
-            .plugin => self.plugin.internalIdentifier(),
-        };
-    }
-    pub fn bundleTypeIdentifier(self: ProductKind) []const u8 {
-        return switch (self) {
-            .console_app, .gui_app => "app",
-            .plugin => |fmt| switch (fmt) {
-                .vst3 => "vst3",
-                .standalone => "app",
-                // .au => "component",
-            },
-        };
-    }
-};
-
-fn addJuceaide(
-    upstream: *std.Build.Dependency,
-    juce_modules_lib: *std.Build.Step.Compile,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Step.Compile {
-    const b = juce_modules_lib.step.owner;
-    const juceaide = b.addExecutable(.{
-        .name = "juceaide",
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-            .link_libcpp = true,
-        }),
-    });
-    juceaide.root_module.linkLibrary(juce_modules_lib);
-    juceaide.root_module.addIncludePath(upstream.path("modules"));
-    juceaide.root_module.addIncludePath(upstream.path("extras/Build"));
-    juceaide.root_module.addCSourceFiles(.{
-        .root = upstream.path("extras/Build/juceaide"),
-        .files = &.{"Main.cpp"},
-    });
-
-    return juceaide;
-}
-
-// Creates the install step for placing the artifact in a macOS bundle structure.
-fn addInstallBundle(
-    artifact: *std.Build.Step.Compile,
-    kind: ProductKind,
-) *std.Build.Step.InstallArtifact {
-    const b = artifact.step.owner;
-    const bundle_subpath = b.fmt("{s}.{s}/Contents/MacOS", .{ artifact.name, kind.bundleTypeIdentifier() });
-    const install_gui_app = b.addInstallArtifact(artifact, .{
-        .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
-        .dest_sub_path = artifact.name,
-    });
-    return install_gui_app;
-}
-
-// Creates the install step for generating and installing the bundle's Info.plist.
-fn addInstallInfoPlist(
-    juceaide: *std.Build.Step.Compile,
-    config: ProjectConfig,
-    kind: ProductKind,
-) *std.Build.Step.InstallFile {
-    const b = juceaide.step.owner;
-    const plist_cmd = b.addRunArtifact(juceaide);
-    const input_info_file = generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
-    plist_cmd.setCwd(input_info_file);
-    plist_cmd.addArgs(&.{
-        "plist",
-        kind.juceaideIdentifier(),
-        "Info.txt",
-    });
-    const out_info_plist = plist_cmd.addOutputFileArg("Info.plist");
-    const install_plist = b.addInstallFileWithDir(
-        out_info_plist,
-        .prefix,
-        b.fmt(
-            "{s}.{s}/Contents/Info.plist",
-            .{ config.product_name, kind.bundleTypeIdentifier() },
-        ),
-    );
-    // Suppress the "JUCE vX.X.X" banner to keep the build logs clean.
-    _ = plist_cmd.captureStdErr();
-
-    return install_plist;
-}
-
-fn appendRecord(buf: *std.ArrayList(u8), gpa: std.mem.Allocator, key: []const u8, value: []const u8) !void {
-    const rs: u8 = 30; // Record Separator
-    const us: u8 = 31; // Unit Separator
-
-    try buf.appendSlice(gpa, key);
-    try buf.append(gpa, us);
-    try buf.appendSlice(gpa, value);
-    try buf.append(gpa, rs);
-}
-
-fn generateInfoText(b: *std.Build, config: ProjectConfig) !std.Build.LazyPath {
-    var buf: std.ArrayList(u8) = .empty;
-
-    try appendRecord(&buf, b.allocator, "EXECUTABLE_NAME", config.product_name);
-    try appendRecord(&buf, b.allocator, "VERSION", config.version);
-    try appendRecord(&buf, b.allocator, "BUILD_VERSION", (config.build_version orelse config.version));
-    try appendRecord(&buf, b.allocator, "BUNDLE_ID", config.bundle_id);
-
-    // TODO: append more records
-    // ...
-
-    const wf = b.addWriteFiles();
-    _ = wf.add("Info.txt", buf.items);
-
-    return wf.getDirectory();
-}
-
-// Creates the install step for generating and installing the bundle's PkgInfo file.
-fn addInstallPkgInfo(
-    juceaide: *std.Build.Step.Compile,
-    product_name: []const u8,
-    kind: ProductKind,
-) *std.Build.Step.InstallFile {
-    const b = juceaide.step.owner;
-    const pkginfo_cmd = b.addRunArtifact(juceaide);
-    pkginfo_cmd.addArgs(&.{
-        "pkginfo",
-        kind.juceaideIdentifier(),
-    });
-    const out_pkginfo = pkginfo_cmd.addOutputFileArg("PkgInfo");
-    const install_pkginfo = b.addInstallFileWithDir(
-        out_pkginfo,
-        .prefix,
-        b.fmt(
-            "{s}.{s}/Contents/PkgInfo",
-            .{ product_name, kind.bundleTypeIdentifier() },
-        ),
-    );
-    // Suppress the "JUCE vX.X.X" banner to keep the build logs clean.
-    _ = pkginfo_cmd.captureStdErr();
-
-    return install_pkginfo;
-}
-
-// Creates the install step for installing the .nib file. I don’t yet fully
-// understand how this .nib file is used, and the installed result is not
-// yet verified to work correctly.
-fn addInstallNib(
-    b: *std.Build,
-    upstream: *std.Build.Dependency,
-    product_name: []const u8,
-    product_kind: ProductKind,
-) *std.Build.Step.InstallFile {
-    const wf = b.addWriteFiles();
-    const nib_file_name = "RecentFilesMenuTemplate.nib";
-    const nib_file_source = b.fmt("extras/Build/CMake/{s}", .{nib_file_name});
-    const nib_file_path = wf.addCopyFile(upstream.path(nib_file_source), nib_file_name);
-    const install_nib_file = b.addInstallFileWithDir(
-        nib_file_path,
-        .prefix,
-        b.fmt("{s}.{s}/Contents/Resources/{s}", .{
-            product_name,
-            product_kind.bundleTypeIdentifier(),
-            nib_file_name,
-        }),
-    );
-    return install_nib_file;
-}
-
 fn getJuceModuleAvailableDefs(m: *std.Build.Module) []const []const u8 {
     const b = m.owner;
     var visited_mods = std.AutoHashMap(*std.Build.Module, void).init(b.allocator);
@@ -1117,23 +606,4 @@ fn updateFlags(T: type, b: *std.Build, c_source_file: *T, flags: []const []const
         flags,
     }) catch @panic("OOM");
     c_source_file.flags = combined;
-}
-
-fn makeValid4cc(b: *std.Build) []const u8 {
-    var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
-    const random = prng.random();
-    var result: [4]u8 = undefined;
-    for (0..4) |i| {
-        result[i] = switch (i) {
-            0 => 'A' + @as(u8, random.uintLessThan(u8, 26)),
-            else => 'a' + @as(u8, random.uintLessThan(u8, 26)),
-        };
-    }
-    return b.dupe(result[0..]);
-}
-
-fn semanticVersionToVersionCode(b: *std.Build, ver: []const u8) ![]const u8 {
-    const version = try std.SemanticVersion.parse(ver);
-    const v = (version.major << 16) | (version.minor << 8) | version.patch;
-    return b.fmt("0x{X}", .{v});
 }
