@@ -2,7 +2,7 @@ const std = @import("std");
 const Setup = @This();
 const darwin = @import("darwin.zig");
 const Juceaide = @import("Juceaide.zig");
-const BinaryData = Juceaide.BinaryData;
+const BinaryData = @import("BinaryData.zig");
 pub const JuceModule = @import("modules.zig").JuceModule;
 
 // TODO: support more plugin formats
@@ -179,7 +179,7 @@ pub const ProjectConfig = struct {
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
-juce_binary_data: std.ArrayList(BinaryData),
+binary_data: std.ArrayList(BinaryData.CreateOptions),
 
 pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
     const upstream = juzi_dep.builder.dependency("upstream", .{});
@@ -189,7 +189,7 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
         .root_module = root_module,
         .juzi_dep = juzi_dep,
         .juce_macros = .empty,
-        .juce_binary_data = .empty,
+        .binary_data = .empty,
     };
 }
 
@@ -251,9 +251,9 @@ pub fn addConsoleApp(
     console_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = juceaide.addBinaryData(b, bd);
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |opts| {
+            const binary_data_lib = BinaryData.create(juceaide, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -330,9 +330,9 @@ pub fn addGuiApp(
     gui_app.root_module.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = juceaide.addBinaryData(b, bd);
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |opts| {
+            const binary_data_lib = BinaryData.create(juceaide, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -432,9 +432,9 @@ pub fn addPlugin(
     plugin_shared_lib.linkLibrary(juce_modules_lib);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
-    if (self.juce_binary_data.items.len > 0) {
-        for (self.juce_binary_data.items) |bd| {
-            const binary_data_lib = juceaide.addBinaryData(b, bd);
+    if (self.binary_data.items.len > 0) {
+        for (self.binary_data.items) |bd_opts| {
+            const binary_data_lib = BinaryData.create(juceaide, bd_opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -577,9 +577,9 @@ pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
     self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
-pub fn addBinaryData(self: *Setup, bd: BinaryData) void {
+pub fn addBinaryData(self: *Setup, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
-    self.juce_binary_data.append(b.allocator, bd) catch @panic("OOM");
+    self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
 fn getJuceCommonFlags(
