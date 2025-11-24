@@ -8,11 +8,11 @@ pub fn getPluginMacros(b: *std.Build, config: ProjectConfig) ![]const []const u8
 
     try flags.append(b.allocator, b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerCode={s}", .{config.plugin_manufacturer_code}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerCode=0x{x}", .{config.plugin_manufacturer_code}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_Manufacturer=\"{s}\"", .{config.company_name}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerWebsite=\"{s}\"", .{config.company_website}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_ManufacturerEmail=\"{s}\"", .{config.company_email}));
-    try flags.append(b.allocator, b.fmt("-DJucePlugin_PluginCode={s}", .{config.plugin_code}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_PluginCode=0x{x}", .{config.plugin_code}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_ProducesMidiOutput={d}", .{@intFromBool(config.needs_midi_output)}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_WantsMidiInput={d}", .{@intFromBool(config.needs_midi_input)}));

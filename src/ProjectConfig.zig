@@ -12,15 +12,15 @@ build_version: []const u8,
 bundle_id: []const u8,
 
 microphone_permission_enabled: ?bool,
-microphone_permission_text: ?[]const u8,
+microphone_permission_text: []const u8,
 camera_permission_enabled: ?bool,
-camera_permission_text: ?[]const u8,
+camera_permission_text: []const u8,
 bluetooth_permission_enabled: ?bool,
-bluetooth_permission_text: ?[]const u8,
+bluetooth_permission_text: []const u8,
 local_network_permission_enabled: ?bool,
-local_network_permission_text: ?[]const u8,
+local_network_permission_text: []const u8,
 send_apple_events_permission_enabled: ?bool,
-send_apple_events_permission_text: ?[]const u8,
+send_apple_events_permission_text: []const u8,
 
 // file_sharing_enabled: ?bool,
 // document_browser_enabled: ?bool,
@@ -40,7 +40,7 @@ send_apple_events_permission_text: ?[]const u8,
 // icon_big: ?[]const u8,
 // icon_small: ?[]const u8,
 
-company_copyright: ?[]const u8,
+company_copyright: []const u8,
 company_name: []const u8,
 company_website: []const u8,
 company_email: []const u8,
@@ -116,18 +116,18 @@ const CreateOptions = struct {
     build_version: ?[]const u8 = null,
     bundle_id: ?[]const u8 = null,
     microphone_permission_enabled: ?bool = null,
-    microphone_permission_text: ?[]const u8 = null,
+    microphone_permission_text: []const u8 = "",
     camera_permission_enabled: ?bool = null,
-    camera_permission_text: ?[]const u8 = null,
+    camera_permission_text: []const u8 = "",
     bluetooth_permission_enabled: ?bool = null,
-    bluetooth_permission_text: ?[]const u8 = null,
+    bluetooth_permission_text: []const u8 = "",
     local_network_permission_enabled: ?bool = null,
-    local_network_permission_text: ?[]const u8 = null,
+    local_network_permission_text: []const u8 = "",
     send_apple_events_permission_enabled: ?bool = null,
-    send_apple_events_permission_text: ?[]const u8 = null,
+    send_apple_events_permission_text: []const u8 = "",
     // icon_big: ?[]const u8 = null,
     // icon_small: ?[]const u8 = null,
-    company_copyright: ?[]const u8 = null,
+    company_copyright: []const u8 = "",
     company_name: []const u8 = "yourcompany",
     company_website: []const u8 = "",
     company_email: []const u8 = "",
@@ -160,15 +160,6 @@ pub fn create(b: *std.Build, options: CreateOptions) ProjectConfig {
     if (std.mem.containsAtLeast(u8, bundle_id, 1, " ")) {
         @panic(b.fmt("Invalid bundle identifier '{s}': cannot contain spaces", .{bundle_id}));
     }
-    const manu_code = if (options.use_legacy_compatibility_plugin_code) "proj" else options.plugin_manufacturer_code;
-    const manu_code_hex = b.fmt("0x{x}", .{manu_code});
-    const plugin_code_hex = b.fmt("0x{x}", .{options.plugin_code orelse makeValid4cc(b)});
-    const vst2_category = options.vst2_category orelse Vst2Category.default(options.is_synth);
-    const vst3_categories = Vst3Category.withDefaults(
-        b.allocator,
-        options.vst3_categories orelse &.{},
-        options.is_synth,
-    ) catch @panic("OOM");
 
     return .{
         .product_name = options.product_name,
@@ -203,8 +194,8 @@ pub fn create(b: *std.Build, options: CreateOptions) ProjectConfig {
         .needs_store_kit = options.needs_store_kit,
 
         .plugin_name = options.plugin_name orelse options.product_name,
-        .plugin_manufacturer_code = manu_code_hex,
-        .plugin_code = plugin_code_hex,
+        .plugin_manufacturer_code = if (options.use_legacy_compatibility_plugin_code) "proj" else options.plugin_manufacturer_code,
+        .plugin_code = options.plugin_code orelse makeValid4cc(b),
         .formats = options.formats,
         .description = options.description orelse options.product_name,
         .is_synth = options.is_synth,
@@ -212,8 +203,8 @@ pub fn create(b: *std.Build, options: CreateOptions) ProjectConfig {
         .needs_midi_output = options.needs_midi_output,
         .needs_midi_input = options.needs_midi_input,
         .editor_wants_keyboard_focus = options.editor_wants_keyboard_focus,
-        .vst2_category = vst2_category,
-        .vst3_categories = vst3_categories,
+        .vst2_category = options.vst2_category orelse Vst2Category.default(options.is_synth),
+        .vst3_categories = Vst3Category.withDefaults(b.allocator, options.vst3_categories orelse &.{}, options.is_synth) catch @panic("OOM"),
         .vst_num_midi_ins = options.vst_num_midi_ins,
         .vst_num_midi_outs = options.vst_num_midi_outs,
         .plist_to_merge = options.plist_to_merge,
