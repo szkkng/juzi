@@ -35,6 +35,7 @@ pub fn getPluginMacros(b: *std.Build, config: ProjectConfig) ![]const []const u8
     // JucePlugin_AUExportPrefix
     // JucePlugin_AUExportPrefixQuoted
     // JucePlugin_AUManufacturerCode
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_CFBundleIdentifier={s}", .{config.bundle_id}));
 
     // JucePlugin_AAXIdentifier
     // JucePlugin_AAXManufacturerCode
