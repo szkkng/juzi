@@ -1,5 +1,5 @@
 const std = @import("std");
-const ProjectConfig = @import("../Setup.zig").ProjectConfig;
+const ProjectConfig = @import("../ProjectConfig.zig");
 const Vst2Category = @import("category.zig").Vst2Category;
 const Vst3Category = @import("category.zig").Vst3Category;
 

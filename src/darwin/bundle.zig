@@ -1,5 +1,5 @@
 const std = @import("std");
-const ProjectConfig = @import("../Setup.zig").ProjectConfig;
+const ProjectConfig = @import("../ProjectConfig.zig");
 const PluginFormat = @import("../plugin/format.zig").PluginFormat;
 const Juceaide = @import("../Juceaide.zig");
 
