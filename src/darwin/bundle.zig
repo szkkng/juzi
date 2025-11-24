@@ -129,7 +129,7 @@ pub fn generateInfoText(b: *std.Build, config: ProjectConfig) !std.Build.LazyPat
 
     try appendRecord(&buf, b.allocator, "EXECUTABLE_NAME", config.product_name);
     try appendRecord(&buf, b.allocator, "VERSION", config.version);
-    try appendRecord(&buf, b.allocator, "BUILD_VERSION", (config.build_version orelse config.version));
+    try appendRecord(&buf, b.allocator, "BUILD_VERSION", config.build_version);
     try appendRecord(&buf, b.allocator, "BUNDLE_ID", config.bundle_id);
 
     // TODO: append more records
