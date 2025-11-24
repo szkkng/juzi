@@ -32,19 +32,19 @@ const zon = @import("build.zig.zon");
 // Import juzi build utilities.
 const juzi = @import("juzi");
 
-// Define project configuration.
-const config = juzi.Setup.ProjectConfig{
-    .product_name = "JuceZbs",
-    .version = zon.version,
-    .bundle_id = "com.example.jucezbs",
-    .plugin_manufacturer_code = "Jzbs",
-    .plugin_code = "Jzbs",
-    .formats = &.{ .vst3, .standalone },
-};
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // Create project configuration.
+    const config = juzi.ProjectConfig.create(b, .{
+        .product_name = "JuziPlugin",
+        .version = zon.version,
+        .bundle_id = "com.example.juzi",
+        .plugin_manufacturer_code = "Juzi",
+        .plugin_code = "Juzi",
+        .formats = &.{ .vst3, .standalone },
+    });
 
     // Create the module for the plugin's C++ source files.
     const module = b.createModule(.{ .target = target, .optimize = optimize });

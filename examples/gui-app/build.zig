@@ -3,14 +3,14 @@ const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
 const zcc = @import("compile_commands");
 
-const config = juzi.Setup.ProjectConfig{
-    .product_name = "GUI App Example",
-    .version = zon.version,
-};
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const config = juzi.ProjectConfig.create(b, .{
+        .product_name = "GUI App Example",
+        .version = zon.version,
+        .bundle_id = "com.example.GuiAppExample",
+    });
 
     const module = b.createModule(.{
         .target = target,
