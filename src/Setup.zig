@@ -5,39 +5,10 @@ const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const Vst3Manifest = @import("plugin/vst3_manifest.zig");
 const PluginMacros = @import("plugin/macros.zig");
+const ProjectConfig = @import("ProjectConfig.zig");
 
 pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
-pub const Vst2Category = @import("plugin/category.zig").Vst2Category;
-pub const Vst3Category = @import("plugin/category.zig").Vst3Category;
 pub const JuceModule = @import("modules.zig").JuceModule;
-
-// TODO: add more fields
-// https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_target
-pub const ProjectConfig = struct {
-    product_name: []const u8,
-    version: []const u8,
-    build_version: ?[]const u8 = null,
-    plugin_name: ?[]const u8 = null,
-    company_name: []const u8 = "yourcompany",
-    company_website: []const u8 = "",
-    company_email: []const u8 = "",
-    bundle_id: []const u8 = "com.yourcompany.product",
-    plugin_manufacturer_code: []const u8 = "Manu",
-    plugin_code: ?[]const u8 = null,
-    formats: []const PluginFormat = &.{},
-    description: ?[]const u8 = null,
-    // copy_plugin_after_build: ?bool = false,
-    is_synth: bool = false,
-    is_midi_effect: bool = false,
-    needs_midi_output: bool = false,
-    needs_midi_input: bool = false,
-    editor_wants_keyboard_focus: bool = false,
-    vst3_auto_manifest: bool = true,
-    vst2_category: ?Vst2Category = null,
-    vst3_categories: ?[]const Vst3Category = null,
-    vst_num_midi_ins: u8 = 16,
-    vst_num_midi_outs: u8 = 16,
-};
 
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,

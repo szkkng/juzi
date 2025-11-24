@@ -3,18 +3,17 @@ const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
 const zcc = @import("compile_commands");
 
-const config = juzi.Setup.ProjectConfig{
-    .product_name = "JuceZbs",
-    .version = zon.version,
-    .bundle_id = "com.example.jucezbs",
-    .plugin_manufacturer_code = "Jzbs",
-    .plugin_code = "Jzbs",
-    .formats = &.{ .vst3, .standalone },
-};
-
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const config = juzi.ProjectConfig.create(b, .{
+        .product_name = "Audio Plugin Example",
+        .version = zon.version,
+        .bundle_id = "com.example.AudioPluginExample",
+        .plugin_manufacturer_code = "Juzi",
+        .plugin_code = "Juzi",
+        .formats = &.{ .vst3, .standalone },
+    });
 
     const module = b.createModule(.{ .target = target, .optimize = optimize });
     module.addCSourceFiles(.{
