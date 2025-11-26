@@ -22,7 +22,7 @@ const ProductKind = union(enum) {
             .plugin => |fmt| switch (fmt) {
                 .vst3 => "vst3",
                 .standalone => "app",
-                // .au => "component",
+                .au => "component",
             },
         };
     }
@@ -171,12 +171,12 @@ pub fn generateInfoText(b: *std.Build, config: ProjectConfig, is_plugin: bool) !
     try appendRecord(&buf, b.allocator, "PLUGIN_NAME", config.plugin_name);
     try appendRecord(&buf, b.allocator, "PLUGIN_MANUFACTURER", config.company_name);
     try appendRecord(&buf, b.allocator, "PLUGIN_DESCRIPTION", config.description);
-    // try appendRecord(&buf, b.allocator, "PLUGIN_AU_EXPORT_PREFIX", config.plugin_au_export_prefix);
-    // try appendRecord(&buf, b.allocator, "PLUGIN_AU_MAIN_TYPE", config.plugin_au_main_type);
-    // try appendRecord(&buf, b.allocator, "IS_AU_SANDBOX_SAFE", toString(config.is_au_sandbox_safe));
+    try appendRecord(&buf, b.allocator, "PLUGIN_AU_EXPORT_PREFIX", config.au_export_prefix);
+    try appendRecord(&buf, b.allocator, "PLUGIN_AU_MAIN_TYPE", config.au_main_type.categoryCode());
+    try appendRecord(&buf, b.allocator, "IS_AU_SANDBOX_SAFE", toString(config.au_sandbox_safe));
     try appendRecord(&buf, b.allocator, "IS_PLUGIN_SYNTH", toString(config.is_synth));
     // try appendRecord(&buf, b.allocator, "IS_PLUGIN_ARA_EFFECT", toString(config.is_ara_effect));
-    // try appendRecord(&buf, b.allocator, "SUPPRESS_AU_PLIST_RESOURCE_USAGE", toString(config.suppress_au_plist_resource_usage));
+    try appendRecord(&buf, b.allocator, "SUPPRESS_AU_PLIST_RESOURCE_USAGE", toString(config.suppress_au_plist_resource_usage));
     // try appendRecord(&buf, b.allocator, "HARDENED_RUNTIME_ENABLED", toString(config.hardened_runtime_enabled));
     // try appendRecord(&buf, b.allocator, "APP_SANDBOX_ENABLED", toString(config.app_sandbox_enabled));
     // try appendRecord(&buf, b.allocator, "APP_SANDBOX_INHERIT", toString(config.app_sandbox_inherit));

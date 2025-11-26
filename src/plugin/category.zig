@@ -117,3 +117,31 @@ pub const Vst3Category = enum {
         return try std.mem.join(allocator, "|", categoryStrings.items);
     }
 };
+
+pub const AudioUnitMainType = enum {
+    kAudioUnitType_Effect,
+    kAudioUnitType_FormatConverter,
+    kAudioUnitType_Generator,
+    kAudioUnitType_MIDIProcessor,
+    kAudioUnitType_Mixer,
+    kAudioUnitType_MusicDevice,
+    kAudioUnitType_MusicEffect,
+    kAudioUnitType_OfflineEffect,
+    kAudioUnitType_Output,
+    kAudioUnitType_Panner,
+
+    pub fn categoryCode(self: AudioUnitMainType) []const u8 {
+        return switch (self) {
+            .kAudioUnitType_Effect => "\'aufx\'",
+            .kAudioUnitType_FormatConverter => "\'aufc\'",
+            .kAudioUnitType_Generator => "\'augn\'",
+            .kAudioUnitType_MIDIProcessor => "\'aumi\'",
+            .kAudioUnitType_Mixer => "\'aumx\'",
+            .kAudioUnitType_MusicDevice => "\'aumu\'",
+            .kAudioUnitType_MusicEffect => "\'aumf\'",
+            .kAudioUnitType_OfflineEffect => "\'auol\'",
+            .kAudioUnitType_Output => "\'auou\'",
+            .kAudioUnitType_Panner => "\'aupn\'",
+        };
+    }
+};

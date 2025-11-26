@@ -350,6 +350,56 @@ pub fn addPlugin(
                 result.artifacts.put(.vst3, vst3) catch @panic("OOM");
                 result.install_steps.put(.vst3, vst3_step) catch @panic("OOM");
             },
+            .au => {
+                flags.append(b.allocator, "-DJucePlugin_Build_AU=1") catch @panic("OOM");
+                const au_module = b.createModule(.{
+                    .target = target,
+                    .optimize = optimize,
+                    .link_libcpp = true,
+                });
+                au_module.addIncludePath(upstream.path("modules"));
+                au_module.addIncludePath(upstream.path("modules/juce_audio_plugin_client/AU"));
+                au_module.addCSourceFiles(.{
+                    .root = upstream.path("modules"),
+                    .files = &.{
+                        "juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm",
+                        "juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm",
+                    },
+                    .flags = flags.items,
+                });
+                if (target.result.os.tag.isDarwin()) {
+                    darwin.sdk.addPaths(b, au_module);
+                }
+
+                const au_step = b.step("au", "Build AU");
+
+                // macOS: Zig doesn’t yet emit Mach‑O bundles (MH_BUNDLE) (see https://github.com/ziglang/zig/issues/14757).
+                // We build an MH_DYLIB instead and install it as the bundle’s main binary.
+                // Many hosts may accept this, but MH_BUNDLE is the conventional AU format.
+                // Once Zig supports MH_BUNDLE, switch to it and remove this workaround.
+                const au = b.addLibrary(.{
+                    .linkage = .dynamic,
+                    .name = b.fmt("{s}", .{config.product_name}),
+                    .root_module = au_module,
+                });
+                au.linkLibrary(plugin_shared_lib);
+
+                const install_au = darwin.bundle.addInstallBundle(au, .{ .plugin = .au });
+                const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
+                    b,
+                    b.getInstallPath(.prefix, b.fmt("{s}.component", .{au.name})),
+                );
+                adhoc_sign_run.step.dependOn(&install_au.step);
+                au_step.dependOn(&adhoc_sign_run.step);
+
+                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .au });
+                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
+                au_step.dependOn(&install_plist.step);
+                au_step.dependOn(&install_pkginfo.step);
+
+                result.artifacts.put(.au, au) catch @panic("OOM");
+                result.install_steps.put(.au, au_step) catch @panic("OOM");
+            },
             .standalone => {
                 flags.append(b.allocator, "-DJucePlugin_Build_Standalone=1") catch @panic("OOM");
 
@@ -446,6 +496,12 @@ fn getJuceCommonFlags(
     // Disable this error as a workaround to allow JUCE to build.
     // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
     flags.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
+
+    // JUCE's AU plugin client can use enum values outside the usual range,
+    // which trips UBSan's enum checks when loading debug AU plugins.
+    // Zig enables these UBSan checks by default, so disable them here.
+    // https://github.com/juce-framework/JUCE/blob/1b460fe0895635a2ab8ac5c00cb5575e33e5dc1e/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm#L944
+    flags.append(b.allocator, "-fno-sanitize=enum") catch @panic("OOM");
 
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
