@@ -28,13 +28,11 @@ pub fn getPluginMacros(b: *std.Build, config: ProjectConfig) ![]const []const u8
     try flags.append(b.allocator, b.fmt("-DJucePlugin_Vst3Category=\"{s}\"", .{try Vst3Category.join(b.allocator, config.vst3_categories)}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiInputs={d}", .{config.vst_num_midi_ins}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_VSTNumMidiOutputs={d}", .{config.vst_num_midi_outs}));
-
-    // TODO: add more JUCE plugin macros
-    // JucePlugin_AUMainType
-    // JucePlugin_AUSubType
-    // JucePlugin_AUExportPrefix
-    // JucePlugin_AUExportPrefixQuoted
-    // JucePlugin_AUManufacturerCode
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_AUMainType={s}", .{config.au_main_type.categoryCode()}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_AUSubType={s}", .{"JucePlugin_PluginCode"}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_AUExportPrefix={s}", .{config.au_export_prefix}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_AUExportPrefixQuoted=\"{s}\"", .{config.au_export_prefix}));
+    try flags.append(b.allocator, b.fmt("-DJucePlugin_AUManufacturerCode={s}", .{"JucePlugin_ManufacturerCode"}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_CFBundleIdentifier={s}", .{config.bundle_id}));
 
     // JucePlugin_AAXIdentifier

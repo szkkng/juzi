@@ -5,7 +5,7 @@ WIP: [Zig](https://ziglang.org/) build utilities for [JUCE](https://juce.com)
 Current limitations:
 
 - Only macOS builds are supported.
-- Plugin formats are limited to VST3 and Standalone.
+- Plugin formats are limited to VST3, AU and Standalone.
 - Only the JUCE modules required for the included examples are supported.
 - Many configuration fields are still missing.
 

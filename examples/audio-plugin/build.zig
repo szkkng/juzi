@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
         .bundle_id = "com.example.AudioPluginExample",
         .plugin_manufacturer_code = "Juzi",
         .plugin_code = "Juzi",
-        .formats = &.{ .vst3, .standalone },
+        .formats = &.{ .vst3, .au, .standalone },
     });
 
     const module = b.createModule(.{ .target = target, .optimize = optimize });
