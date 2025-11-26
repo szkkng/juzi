@@ -7,7 +7,6 @@ Current limitations:
 - Only macOS builds are supported.
 - Plugin formats are limited to VST3, AU and Standalone.
 - Only the JUCE modules required for the included examples are supported.
-- Many configuration fields are still missing.
 
 ## Usage
 
@@ -43,7 +42,7 @@ pub fn build(b: *std.Build) void {
         .bundle_id = "com.example.juzi",
         .plugin_manufacturer_code = "Juzi",
         .plugin_code = "Juzi",
-        .formats = &.{ .vst3, .standalone },
+        .formats = &.{ .vst3, .au, .standalone },
     });
 
     // Create the module for the plugin's C++ source files.
