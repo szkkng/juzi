@@ -24,12 +24,12 @@ pub fn addInstallModuleInfo(
     });
     manifest_helper.root_module.addIncludePath(upstream.path("modules"));
     manifest_helper.root_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+    const is_darwin = options.target.result.os.tag.isDarwin();
     manifest_helper.root_module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_audio_plugin_client/VST3"),
-        .files = &.{"juce_VST3ManifestHelper.mm"},
+        .files = &.{b.fmt("juce_VST3ManifestHelper.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = options.flags,
     });
-    manifest_helper.root_module.linkFramework("Foundation", .{});
 
     const manifest_helper_cmd = b.addRunArtifact(manifest_helper);
     const out_module_info = manifest_helper_cmd.captureStdOut();
@@ -39,7 +39,8 @@ pub fn addInstallModuleInfo(
         b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
     );
 
-    if (options.target.result.os.tag.isDarwin()) {
+    if (is_darwin) {
+        manifest_helper.root_module.linkFramework("Foundation", .{});
         darwin.sdk.addPaths(b, manifest_helper.root_module);
     }
 
