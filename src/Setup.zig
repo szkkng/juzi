@@ -348,10 +348,13 @@ pub fn addPlugin(
                         vst3_step.dependOn(&install_pkginfo.step);
                     },
                     .linux => {
-                        const bundle_subpath = b.fmt("{s}.vst3/Contents/{s}", .{ vst3.name, @tagName(target.result.cpu.arch) });
+                        const bundle_subpath = b.fmt(
+                            "{s}.vst3/Contents/{s}-linux",
+                            .{ config.product_name, @tagName(target.result.cpu.arch) },
+                        );
                         const install_vst3 = b.addInstallArtifact(vst3, .{
                             .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
-                            .dest_sub_path = vst3.name,
+                            .dest_sub_path = b.fmt("{s}.so", .{vst3.name}),
                         });
                         vst3_step.dependOn(&install_vst3.step);
                     },
