@@ -54,6 +54,9 @@ pub fn addModule(
             juce_audio_devices.linkFramework("AudioToolbox", .{});
             juce_audio_devices.linkFramework("AVFoundation", .{});
         },
+        .linux => {
+            juce_audio_devices.linkSystemLibrary("alsa", .{});
+        },
         else => {},
     }
 

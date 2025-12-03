@@ -32,10 +32,6 @@ pub fn addModule(
     juce_graphics.addIncludePath(upstream.path("modules/juce_graphics/fonts"));
     juce_graphics.addIncludePath(upstream.path("modules/juce_graphics/unicode/sheenbidi/Headers"));
     juce_graphics.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_graphics"),
-        .files = &.{"juce_graphics.mm"},
-    });
-    juce_graphics.addCSourceFiles(.{
         .root = upstream.path("modules/juce_graphics/unicode/sheenbidi/Source"),
         .files = &.{
             "BidiChain.c",
@@ -88,6 +84,10 @@ pub fn addModule(
             juce_graphics.linkFramework("CoreImage", .{});
             juce_graphics.linkFramework("CoreText", .{});
             juce_graphics.linkFramework("QuartzCore", .{});
+        },
+        .linux => {
+            juce_graphics.linkSystemLibrary("freetype2", .{});
+            juce_graphics.linkSystemLibrary("fontconfig", .{});
         },
         else => {},
     }
