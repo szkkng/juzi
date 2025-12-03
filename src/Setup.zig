@@ -83,6 +83,8 @@ pub fn addConsoleApp(
         .root_module = self.root_module,
     });
     console_app.root_module.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(console_app.root_module, options.config);
+
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -162,6 +164,7 @@ pub fn addGuiApp(
         .root_module = self.root_module,
     });
     gui_app.root_module.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(gui_app.root_module, options.config);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -268,6 +271,7 @@ pub fn addPlugin(
         .root_module = self.root_module,
     });
     plugin_shared_lib.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -498,6 +502,31 @@ pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
 pub fn addBinaryData(self: *Setup, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
+}
+
+fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
+    const os_tag = m.resolved_target.?.result.os.tag;
+    switch (os_tag) {
+        .linux => {
+            if (config.needs_curl) {
+                m.linkSystemLibrary("curl", .{});
+            }
+
+            if (config.needs_web_browser) {
+                // TODO: Implement logic equivalent to JUCE's
+                // _juce_available_pkgconfig_module_or_else(webkit_package_name webkit2gtk-4.1 webkit2gtk-4.0)
+                m.linkSystemLibrary("webkit2gtk-4.1", .{});
+                // m.linkSystemLibrary("webkit2gtk-4.0", .{});
+
+                m.linkSystemLibrary("gtk+-x11-3.0", .{});
+            }
+        },
+        else => {
+            if (os_tag.isDarwin()) {
+                // TODO: Link StoreKit and ImageIO when needed.
+            }
+        },
+    }
 }
 
 fn getJuceCommonFlags(
