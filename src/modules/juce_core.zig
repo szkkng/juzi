@@ -48,6 +48,11 @@ pub fn addModule(
         .ios => {
             juce_core.linkFramework("Foundation", .{});
         },
+        .linux => {
+            juce_core.linkSystemLibrary("rt", .{});
+            juce_core.linkSystemLibrary("dl", .{});
+            juce_core.linkSystemLibrary("pthread", .{});
+        },
         else => {},
     }
 
