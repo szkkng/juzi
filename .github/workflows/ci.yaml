@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-examples-macos:
+    name: Build Examples (macOS)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64-macos.10.15, aarch64-macos.11.0]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+
+      - name: Build console-app
+        run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
+        working-directory: examples/console-app
+
+      - name: Build gui-app
+        run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
+        working-directory: examples/gui-app
+
+      - name: Build audio-plugin
+        run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
+        working-directory: examples/audio-plugin
+
+  build-examples-linux:
+    name: Build Examples (Linux)
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+
+      - name: Build console-app
+        run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
+        working-directory: examples/console-app
+
+      - name: Build gui-app
+        run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
+        working-directory: examples/gui-app
+
+      - name: Build audio-plugin
+        run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
+        working-directory: examples/audio-plugin
