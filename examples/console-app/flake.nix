@@ -36,6 +36,7 @@
               # https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md#packages
               ++ lib.optionals stdenv.isLinux [
                 pkg-config
+                llvmPackages.bintools
 
                 # juce_audio_devices
                 alsa-lib
@@ -62,6 +63,21 @@
 
                 # juce_gui_extra
                 webkitgtk_4_1
+
+                # others
+                libuuid
+                libxkbcommon
+                libthai
+                libdatrie
+                libepoxy
+                libselinux
+                libsepol
+                libsysprof-capture
+                xorg.libXdmcp
+                xorg.libXtst
+                lerc
+                pcre2
+                sqlite
               ];
 
             shellHook = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
@@ -70,6 +86,7 @@
               export PATH=$(echo "$PATH" | sed "s|${pkgs.xcbuild.xcrun}/bin:||g")
             '';
           };
+
         }
       );
     };
