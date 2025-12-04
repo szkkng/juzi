@@ -28,7 +28,7 @@ zig init
 Download and add juzi as a dependency by running the following command in your project root:
 
 ```bash
-zig fetch --save git+https://codeberg.org/kengo/juzi
+zig fetch --save git+https://github.com/szkkng/juzi
 ```
 
 Then, configure your `build.zig` to use juzi.  
