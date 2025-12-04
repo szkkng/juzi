@@ -12,6 +12,19 @@ on:
       - "**.md"
       - "**/.gitignore"
   workflow_dispatch:
+    inputs:
+      build-plugin:
+        description: "Build audio-plugin"
+        type: boolean
+        default: true
+      build-console:
+        description: "Build console-app"
+        type: boolean
+        default: false
+      build-gui:
+        description: "Build gui-app"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,17 +45,20 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
 
+      - name: Build audio-plugin
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build-plugin == 'true' }}
+        run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
+        working-directory: examples/audio-plugin
+
       - name: Build console-app
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build-console == 'true' }}
         run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
         working-directory: examples/console-app
 
       - name: Build gui-app
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build-gui == 'true' }}
         run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
         working-directory: examples/gui-app
-
-      - name: Build audio-plugin
-        run: nix develop -c zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast --summary all
-        working-directory: examples/audio-plugin
 
   build-examples-linux:
     name: Build Examples (Linux)
@@ -58,14 +74,18 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
 
+      - name: Build audio-plugin
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build-plugin == 'true' }}
+        run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
+        working-directory: examples/audio-plugin
+
       - name: Build console-app
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build-console == 'true' }}
         run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
         working-directory: examples/console-app
 
       - name: Build gui-app
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build-gui == 'true' }}
         run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
         working-directory: examples/gui-app
 
-      - name: Build audio-plugin
-        run: nix develop -c zig build -Doptimize=ReleaseFast --summary all
-        working-directory: examples/audio-plugin
