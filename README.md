@@ -1,6 +1,6 @@
 # juzi
 
-Build JUCE projects using the Zig build system.
+Build JUCE projects using the Zig build system.  
 Currently WIP.
 
 ## Limitations
@@ -104,6 +104,27 @@ To build:
 
 ```bash
 zig build -Doptimize=ReleaseFast
+```
+
+For audio plugin projects, you can build a specific format and install it:
+
+```bash
+zig build vst3 -Doptimize=ReleaseFast -p ~/Library/Audio/Plug-Ins/VST3
+```
+
+The vst3 step becomes available when you specify the format in your ProjectConfig, for example:
+
+```zig
+const config = juzi.ProjectConfig.create(b, .{
+// ...
+    .formats = &.{ .vst3 },
+});
+```
+
+You can list all available steps by running:
+
+```bash
+zig build -l
 ```
 
 ## Generating compile_commands.json
