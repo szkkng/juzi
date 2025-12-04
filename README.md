@@ -1,6 +1,6 @@
 # juzi
 
-Build JUCE projects with Zig instead of CMake.  
+Build JUCE projects using the Zig build system.
 Currently WIP.
 
 ## Limitations
@@ -103,7 +103,7 @@ pub fn build(b: *std.Build) void {
 To build:
 
 ```bash
-zig build
+zig build -Doptimize=ReleaseFast
 ```
 
 ## Generating compile_commands.json
