@@ -83,6 +83,8 @@ pub fn addConsoleApp(
         .root_module = self.root_module,
     });
     console_app.root_module.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(console_app.root_module, options.config);
+
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -162,6 +164,7 @@ pub fn addGuiApp(
         .root_module = self.root_module,
     });
     gui_app.root_module.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(gui_app.root_module, options.config);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -197,13 +200,17 @@ pub fn addGuiApp(
             artifact = install_gui_app.artifact;
             install_step = &install_gui_app.step;
         },
+        .linux => {
+            const install_gui_app = b.addInstallArtifact(gui_app, .{});
+            install_step = &install_gui_app.step;
+        },
         // .windows => {
         // },
         else => @panic("Not implemented yet: only macOS is supported"),
     }
 
     return .{
-        .artifact = artifact.?,
+        .artifact = gui_app,
         .install_step = install_step.?,
         .binary_data = binary_data,
     };
@@ -264,6 +271,7 @@ pub fn addPlugin(
         .root_module = self.root_module,
     });
     plugin_shared_lib.linkLibrary(juce_modules_lib);
+    linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
@@ -297,11 +305,14 @@ pub fn addPlugin(
                 vst3_module.addIncludePath(upstream.path("modules"));
                 vst3_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types"));
                 vst3_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+
+                const is_darwin = target.result.os.tag.isDarwin();
                 vst3_module.addCSourceFiles(.{
                     .root = upstream.path("modules"),
-                    .files = &.{
-                        "juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm",
-                    },
+                    .files = &.{b.fmt(
+                        "juce_audio_plugin_client/juce_audio_plugin_client_VST3.{s}",
+                        .{if (is_darwin) "mm" else "cpp"},
+                    )},
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
@@ -321,18 +332,34 @@ pub fn addPlugin(
                 });
                 vst3.linkLibrary(plugin_shared_lib);
 
-                const install_vst3 = darwin.bundle.addInstallBundle(vst3, .{ .plugin = .vst3 });
-                const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
-                    b,
-                    b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
-                );
-                adhoc_sign_run.step.dependOn(&install_vst3.step);
-                vst3_step.dependOn(&adhoc_sign_run.step);
+                switch (target.result.os.tag) {
+                    .macos => {
+                        const install_vst3 = darwin.bundle.addInstallBundle(vst3, .{ .plugin = .vst3 });
+                        const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
+                            b,
+                            b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
+                        );
+                        adhoc_sign_run.step.dependOn(&install_vst3.step);
+                        vst3_step.dependOn(&adhoc_sign_run.step);
 
-                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
-                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
-                vst3_step.dependOn(&install_plist.step);
-                vst3_step.dependOn(&install_pkginfo.step);
+                        const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
+                        const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
+                        vst3_step.dependOn(&install_plist.step);
+                        vst3_step.dependOn(&install_pkginfo.step);
+                    },
+                    .linux => {
+                        const bundle_subpath = b.fmt(
+                            "{s}.vst3/Contents/{s}-linux",
+                            .{ config.product_name, @tagName(target.result.cpu.arch) },
+                        );
+                        const install_vst3 = b.addInstallArtifact(vst3, .{
+                            .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
+                            .dest_sub_path = b.fmt("{s}.so", .{vst3.name}),
+                        });
+                        vst3_step.dependOn(&install_vst3.step);
+                    },
+                    else => @panic("Not implemented yet"),
+                }
 
                 if (config.vst3_auto_manifest) {
                     const install_module_info = Vst3Manifest.addInstallModuleInfo(
@@ -352,6 +379,10 @@ pub fn addPlugin(
                 result.install_steps.put(.vst3, vst3_step) catch @panic("OOM");
             },
             .au => {
+                if (!target.result.os.tag.isDarwin()) {
+                    continue;
+                }
+
                 flags.append(b.allocator, "-DJucePlugin_Build_AU=1") catch @panic("OOM");
                 const au_module = b.createModule(.{
                     .target = target,
@@ -429,15 +460,24 @@ pub fn addPlugin(
 
                 const standalone_step = b.step("standalone", "Build standalone");
 
-                const install_standalone = darwin.bundle.addInstallBundle(standalone, .{ .plugin = .standalone });
-                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
-                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
-                const install_nib = darwin.bundle.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
+                switch (target.result.os.tag) {
+                    .macos => {
+                        const install_standalone = darwin.bundle.addInstallBundle(standalone, .{ .plugin = .standalone });
+                        const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
+                        const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
+                        const install_nib = darwin.bundle.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
 
-                standalone_step.dependOn(&install_standalone.step);
-                standalone.step.dependOn(&install_plist.step);
-                standalone_step.dependOn(&install_pkginfo.step);
-                standalone_step.dependOn(&install_nib.step);
+                        standalone_step.dependOn(&install_standalone.step);
+                        standalone.step.dependOn(&install_plist.step);
+                        standalone_step.dependOn(&install_pkginfo.step);
+                        standalone_step.dependOn(&install_nib.step);
+                    },
+                    .linux => {
+                        const install_standalone = b.addInstallArtifact(standalone, .{});
+                        standalone_step.dependOn(&install_standalone.step);
+                    },
+                    else => @panic("Not implemented yet"),
+                }
 
                 const run_cmd = b.addRunArtifact(standalone);
                 run_cmd.step.dependOn(standalone_step);
@@ -467,6 +507,31 @@ pub fn addBinaryData(self: *Setup, bd: BinaryData.CreateOptions) void {
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
+fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
+    const os_tag = m.resolved_target.?.result.os.tag;
+    switch (os_tag) {
+        .linux => {
+            if (config.needs_curl) {
+                m.linkSystemLibrary("curl", .{});
+            }
+
+            if (config.needs_web_browser) {
+                // TODO: Implement logic equivalent to JUCE's
+                // _juce_available_pkgconfig_module_or_else(webkit_package_name webkit2gtk-4.1 webkit2gtk-4.0)
+                m.linkSystemLibrary("webkit2gtk-4.1", .{});
+                // m.linkSystemLibrary("webkit2gtk-4.0", .{});
+
+                m.linkSystemLibrary("gtk+-x11-3.0", .{});
+            }
+        },
+        else => {
+            if (os_tag.isDarwin()) {
+                // TODO: Link StoreKit and ImageIO when needed.
+            }
+        },
+    }
+}
+
 fn getJuceCommonFlags(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -477,6 +542,9 @@ fn getJuceCommonFlags(
     switch (target.result.os.tag) {
         .macos => {
             flags.append(b.allocator, "-DJUCE_MAC=1") catch @panic("OOM");
+        },
+        .linux => {
+            flags.append(b.allocator, "-DJUCE_LINUX=1") catch @panic("OOM");
         },
         // .windows => {
         //     flags.append(b.allocator, "-D_CONSOLE=1") catch @panic("OOM");

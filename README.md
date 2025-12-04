@@ -5,9 +5,9 @@ Currently WIP.
 
 ## Limitations
 
-- Only macOS builds are supported.
-- Plugin formats are limited to VST3, AU and Standalone.
-- Only the JUCE modules required for the included examples are supported.
+- Windows is not supported due to Zig [issue](https://github.com/ziglang/zig/issues/18685).
+- Formats: VST3, AU, Standalone.
+- Only the JUCE modules required to build the examples are supported.
 
 ## Requirements
 
