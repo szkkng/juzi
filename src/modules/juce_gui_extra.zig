@@ -14,7 +14,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_gui_extra = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -25,29 +25,28 @@ pub fn addModule(
             },
         },
     });
-    juce_gui_extra.addIncludePath(upstream.path("modules"));
-    juce_gui_extra.addIncludePath(upstream.path("modules/juce_gui_extra"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_gui_extra.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_gui_extra"),
         .files = &.{b.fmt("juce_gui_extra.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_gui_extra);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_gui_extra.linkFramework("WebKit", .{});
-            juce_gui_extra.linkFramework("UserNotifications", .{ .weak = true });
+            module.linkFramework("WebKit", .{});
+            module.linkFramework("UserNotifications", .{ .weak = true });
         },
         .ios => {
-            juce_gui_extra.linkFramework("WebKit", .{});
-            juce_gui_extra.linkFramework("UserNotifications", .{ .weak = true });
+            module.linkFramework("WebKit", .{});
+            module.linkFramework("UserNotifications", .{ .weak = true });
         },
         else => {},
     }
 
-    return juce_gui_extra;
+    return module;
 }

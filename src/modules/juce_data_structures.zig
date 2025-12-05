@@ -13,7 +13,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_data_structures = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -24,14 +24,13 @@ pub fn addModule(
             },
         },
     });
-    juce_data_structures.addIncludePath(upstream.path("modules"));
-    juce_data_structures.addIncludePath(upstream.path("modules/juce_data_structures"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_data_structures.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_data_structures"),
         .files = &.{b.fmt("juce_data_structures.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
 
-    return juce_data_structures;
+    return module;
 }

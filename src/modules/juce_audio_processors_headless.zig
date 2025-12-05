@@ -15,7 +15,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_audio_processors_headless = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -30,31 +30,28 @@ pub fn addModule(
             },
         },
     });
-    juce_audio_processors_headless.addIncludePath(upstream.path("modules"));
-    juce_audio_processors_headless.addIncludePath(upstream.path("modules/juce_audio_processors_headless"));
-    juce_audio_processors_headless.addIncludePath(upstream.path("modules/juce_audio_processors_headless/processors"));
-    juce_audio_processors_headless.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_audio_processors_headless.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_audio_processors_headless"),
         .files = &.{b.fmt("juce_audio_processors_headless.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_audio_processors_headless);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_audio_processors_headless.linkFramework("CoreAudio", .{});
-            juce_audio_processors_headless.linkFramework("CoreMIDI", .{});
-            juce_audio_processors_headless.linkFramework("AudioToolbox", .{});
+            module.linkFramework("CoreAudio", .{});
+            module.linkFramework("CoreMIDI", .{});
+            module.linkFramework("AudioToolbox", .{});
         },
         .ios => {
-            juce_audio_processors_headless.linkFramework("AudioToolbox", .{});
+            module.linkFramework("AudioToolbox", .{});
         },
         else => {},
     }
 
-    return juce_audio_processors_headless;
+    return module;
 }

@@ -15,7 +15,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_audio_devices = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -30,35 +30,34 @@ pub fn addModule(
             },
         },
     });
-    juce_audio_devices.addIncludePath(upstream.path("modules"));
-    juce_audio_devices.addIncludePath(upstream.path("modules/juce_audio_devices"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_audio_devices.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_audio_devices"),
         .files = &.{b.fmt("juce_audio_devices.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_audio_devices);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_audio_devices.linkFramework("CoreAudio", .{});
-            juce_audio_devices.linkFramework("CoreMIDI", .{});
-            juce_audio_devices.linkFramework("AudioToolbox", .{});
+            module.linkFramework("CoreAudio", .{});
+            module.linkFramework("CoreMIDI", .{});
+            module.linkFramework("AudioToolbox", .{});
         },
         .ios => {
-            juce_audio_devices.linkFramework("CoreAudio", .{});
-            juce_audio_devices.linkFramework("CoreMIDI", .{});
-            juce_audio_devices.linkFramework("AudioToolbox", .{});
-            juce_audio_devices.linkFramework("AVFoundation", .{});
+            module.linkFramework("CoreAudio", .{});
+            module.linkFramework("CoreMIDI", .{});
+            module.linkFramework("AudioToolbox", .{});
+            module.linkFramework("AVFoundation", .{});
         },
         .linux => {
-            juce_audio_devices.linkSystemLibrary("alsa", .{});
+            module.linkSystemLibrary("alsa", .{});
         },
         else => {},
     }
 
-    return juce_audio_devices;
+    return module;
 }

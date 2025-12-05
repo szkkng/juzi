@@ -14,7 +14,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_audio_formats = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -25,31 +25,30 @@ pub fn addModule(
             },
         },
     });
-    juce_audio_formats.addIncludePath(upstream.path("modules"));
-    juce_audio_formats.addIncludePath(upstream.path("modules/juce_audio_formats"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_audio_formats.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_audio_formats"),
         .files = &.{b.fmt("juce_audio_formats.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_audio_formats);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_audio_formats.linkFramework("CoreAudio", .{});
-            juce_audio_formats.linkFramework("CoreMIDI", .{});
-            juce_audio_formats.linkFramework("QuartzCore", .{});
-            juce_audio_formats.linkFramework("AudioToolbox", .{});
+            module.linkFramework("CoreAudio", .{});
+            module.linkFramework("CoreMIDI", .{});
+            module.linkFramework("QuartzCore", .{});
+            module.linkFramework("AudioToolbox", .{});
         },
         .ios => {
-            juce_audio_formats.linkFramework("AudioToolbox", .{});
-            juce_audio_formats.linkFramework("QuartzCore", .{});
+            module.linkFramework("AudioToolbox", .{});
+            module.linkFramework("QuartzCore", .{});
         },
         else => {},
     }
 
-    return juce_audio_formats;
+    return module;
 }

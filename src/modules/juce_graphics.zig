@@ -14,7 +14,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_graphics = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libc = true,
@@ -26,71 +26,41 @@ pub fn addModule(
             },
         },
     });
-    juce_graphics.addIncludePath(upstream.path("modules"));
-    juce_graphics.addIncludePath(upstream.path("modules/juce_graphics"));
-    juce_graphics.addIncludePath(upstream.path("modules/juce_graphics/unicode"));
-    juce_graphics.addIncludePath(upstream.path("modules/juce_graphics/fonts"));
-    juce_graphics.addIncludePath(upstream.path("modules/juce_graphics/unicode/sheenbidi/Headers"));
-    juce_graphics.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_graphics/unicode/sheenbidi/Source"),
+    module.addIncludePath(upstream.path("modules"));
+    module.addCSourceFiles(.{
+        .root = upstream.path("modules/juce_graphics"),
         .files = &.{
-            "BidiChain.c",
-            "BidiTypeLookup.c",
-            "BracketQueue.c",
-            "GeneralCategoryLookup.c",
-            "IsolatingRun.c",
-            "LevelRun.c",
-            "Object.c",
-            "PairingLookup.c",
-            "RunQueue.c",
-            "SBAlgorithm.c",
-            "SBBase.c",
-            "SBCodepoint.c",
-            "SBCodepointSequence.c",
-            "SBLine.c",
-            "SBLog.c",
-            "SBMirrorLocator.c",
-            "SBParagraph.c",
-            "SBScriptLocator.c",
-            "ScriptLookup.c",
-            "ScriptStack.c",
-            "SheenBidi.c",
-            "StatusStack.c",
-        },
-    });
-    juce_graphics.addCSourceFiles(.{
-        .root = upstream.path("modules"),
-        .files = &.{
-            "juce_graphics/juce_graphics_Harfbuzz.cpp",
+            "juce_graphics_Harfbuzz.cpp",
+            "juce_graphics_Sheenbidi.c",
         },
     });
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_graphics.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_graphics"),
         .files = &.{b.fmt("juce_graphics.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_graphics);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_graphics.linkFramework("Cocoa", .{});
-            juce_graphics.linkFramework("QuartzCore", .{});
+            module.linkFramework("Cocoa", .{});
+            module.linkFramework("QuartzCore", .{});
         },
         .ios => {
-            juce_graphics.linkFramework("CoreGraphics", .{});
-            juce_graphics.linkFramework("CoreImage", .{});
-            juce_graphics.linkFramework("CoreText", .{});
-            juce_graphics.linkFramework("QuartzCore", .{});
+            module.linkFramework("CoreGraphics", .{});
+            module.linkFramework("CoreImage", .{});
+            module.linkFramework("CoreText", .{});
+            module.linkFramework("QuartzCore", .{});
         },
         .linux => {
-            juce_graphics.linkSystemLibrary("freetype2", .{});
-            juce_graphics.linkSystemLibrary("fontconfig", .{});
+            module.linkSystemLibrary("freetype2", .{});
+            module.linkSystemLibrary("fontconfig", .{});
         },
         else => {},
     }
 
-    return juce_graphics;
+    return module;
 }

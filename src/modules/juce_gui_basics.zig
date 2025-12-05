@@ -15,7 +15,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_gui_basics = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -30,37 +30,34 @@ pub fn addModule(
             },
         },
     });
-    juce_gui_basics.addIncludePath(upstream.path("modules"));
-    juce_gui_basics.addIncludePath(upstream.path("modules/juce_gui_basics"));
-    juce_gui_basics.addIncludePath(upstream.path("modules/juce_gui_basics/detail"));
-    juce_gui_basics.addIncludePath(upstream.path("modules/juce_gui_basics/detail/native"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_gui_basics.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_gui_basics"),
         .files = &.{b.fmt("juce_gui_basics.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_gui_basics);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_gui_basics.linkFramework("Cocoa", .{});
-            juce_gui_basics.linkFramework("QuartzCore", .{});
-            juce_gui_basics.linkFramework("Metal", .{ .weak = true });
-            juce_gui_basics.linkFramework("MetalKit", .{ .weak = true });
+            module.linkFramework("Cocoa", .{});
+            module.linkFramework("QuartzCore", .{});
+            module.linkFramework("Metal", .{ .weak = true });
+            module.linkFramework("MetalKit", .{ .weak = true });
         },
         .ios => {
-            juce_gui_basics.linkFramework("CoreServices", .{});
-            juce_gui_basics.linkFramework("UIKit", .{});
-            juce_gui_basics.linkFramework("Metal", .{ .weak = true });
-            juce_gui_basics.linkFramework("MetalKit", .{ .weak = true });
-            juce_gui_basics.linkFramework("UniformTypeIdentifiers", .{ .weak = true });
-            juce_gui_basics.linkFramework("UserNotifications", .{ .weak = true });
+            module.linkFramework("CoreServices", .{});
+            module.linkFramework("UIKit", .{});
+            module.linkFramework("Metal", .{ .weak = true });
+            module.linkFramework("MetalKit", .{ .weak = true });
+            module.linkFramework("UniformTypeIdentifiers", .{ .weak = true });
+            module.linkFramework("UserNotifications", .{ .weak = true });
         },
         else => {},
     }
 
-    return juce_gui_basics;
+    return module;
 }

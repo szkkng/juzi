@@ -13,7 +13,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_build_tools = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -24,12 +24,12 @@ pub fn addModule(
             },
         },
     });
-    juce_build_tools.addIncludePath(upstream.path("modules"));
-    juce_build_tools.addIncludePath(upstream.path("extras/Build/juce_build_tools"));
-    juce_build_tools.addCSourceFiles(.{
+    module.addIncludePath(upstream.path("modules"));
+    module.addIncludePath(upstream.path("extras/Build/juce_build_tools"));
+    module.addCSourceFiles(.{
         .root = upstream.path("extras/Build/juce_build_tools"),
         .files = &.{"juce_build_tools.cpp"},
     });
 
-    return juce_build_tools;
+    return module;
 }

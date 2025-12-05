@@ -13,16 +13,13 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_core = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
     });
-    juce_core.addIncludePath(upstream.path("modules"));
-    juce_core.addIncludePath(upstream.path("modules/juce_core"));
-    juce_core.addIncludePath(upstream.path("modules/juce_core/text"));
-    juce_core.addIncludePath(upstream.path("modules/juce_core/serialisation"));
-    juce_core.addCSourceFiles(.{
+    module.addIncludePath(upstream.path("modules"));
+    module.addCSourceFiles(.{
         .root = upstream.path("modules"),
         .files = &.{
             "juce_core/juce_core_CompilationTime.cpp",
@@ -30,31 +27,31 @@ pub fn addModule(
     });
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_core.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_core"),
         .files = &.{b.fmt("juce_core.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, juce_core);
+        darwin_sdk.addPaths(b, module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            juce_core.linkFramework("Cocoa", .{});
-            juce_core.linkFramework("Foundation", .{});
-            juce_core.linkFramework("IOKit", .{});
-            juce_core.linkFramework("Security", .{});
+            module.linkFramework("Cocoa", .{});
+            module.linkFramework("Foundation", .{});
+            module.linkFramework("IOKit", .{});
+            module.linkFramework("Security", .{});
         },
         .ios => {
-            juce_core.linkFramework("Foundation", .{});
+            module.linkFramework("Foundation", .{});
         },
         .linux => {
-            juce_core.linkSystemLibrary("rt", .{});
-            juce_core.linkSystemLibrary("dl", .{});
-            juce_core.linkSystemLibrary("pthread", .{});
+            module.linkSystemLibrary("rt", .{});
+            module.linkSystemLibrary("dl", .{});
+            module.linkSystemLibrary("pthread", .{});
         },
         else => {},
     }
 
-    return juce_core;
+    return module;
 }
