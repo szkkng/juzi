@@ -217,8 +217,8 @@ pub fn addGuiApp(
 }
 
 pub const Plugin = struct {
-    artifacts: std.AutoHashMap(PluginFormat, *std.Build.Step.Compile),
-    install_steps: std.AutoHashMap(PluginFormat, *std.Build.Step),
+    artifacts: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step.Compile),
+    install_steps: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step),
     binary_data: ?*std.Build.Step.Compile = null,
 };
 
@@ -231,8 +231,8 @@ pub fn addPlugin(
     const optimize = self.root_module.optimize orelse .Debug;
     const upstream = self.juzi_dep.builder.dependency("upstream", .{});
     var result: Plugin = .{
-        .artifacts = .init(b.allocator),
-        .install_steps = .init(b.allocator),
+        .artifacts = .empty,
+        .install_steps = .empty,
     };
 
     var flags = std.ArrayList([]const u8).empty;
@@ -375,8 +375,8 @@ pub fn addPlugin(
                     vst3_step.dependOn(&install_module_info.step);
                 }
 
-                result.artifacts.put(.vst3, vst3) catch @panic("OOM");
-                result.install_steps.put(.vst3, vst3_step) catch @panic("OOM");
+                result.artifacts.put(b.allocator, .vst3, vst3) catch @panic("OOM");
+                result.install_steps.put(b.allocator, .vst3, vst3_step) catch @panic("OOM");
             },
             .au => {
                 if (!target.result.os.tag.isDarwin()) {
@@ -429,8 +429,8 @@ pub fn addPlugin(
                 au_step.dependOn(&install_plist.step);
                 au_step.dependOn(&install_pkginfo.step);
 
-                result.artifacts.put(.au, au) catch @panic("OOM");
-                result.install_steps.put(.au, au_step) catch @panic("OOM");
+                result.artifacts.put(b.allocator, .au, au) catch @panic("OOM");
+                result.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");
             },
             .standalone => {
                 flags.append(b.allocator, "-DJucePlugin_Build_Standalone=1") catch @panic("OOM");
@@ -484,8 +484,8 @@ pub fn addPlugin(
                 const run_step = b.step("run", "Run standalone");
                 run_step.dependOn(&run_cmd.step);
 
-                result.artifacts.put(.standalone, standalone) catch @panic("OOM");
-                result.install_steps.put(.standalone, standalone_step) catch @panic("OOM");
+                result.artifacts.put(b.allocator, .standalone, standalone) catch @panic("OOM");
+                result.install_steps.put(b.allocator, .standalone, standalone_step) catch @panic("OOM");
             },
             // else => @panic("Not implemented yet"),
         }
@@ -598,19 +598,19 @@ fn getJuceStandardDefs(
 // inserting them into the result map without duplicates.
 fn collectJuceModules(
     m: *std.Build.Module,
-    visited: *std.AutoHashMap(*std.Build.Module, void),
-    result: *std.StringHashMap(*std.Build.Module),
+    visited: *std.AutoHashMapUnmanaged(*std.Build.Module, void),
+    result: *std.StringArrayHashMapUnmanaged(*std.Build.Module),
 ) void {
     if (visited.contains(m)) return;
 
-    visited.put(m, {}) catch @panic("OOM");
+    visited.put(m.owner.allocator, m, {}) catch @panic("OOM");
     const keys = m.import_table.keys();
     const vals = m.import_table.values();
 
     for (keys, vals) |name, val| {
         if (std.mem.startsWith(u8, name, "juce_")) {
             if (!result.contains(name)) {
-                result.put(name, val) catch @panic("OOM");
+                result.put(m.owner.allocator, name, val) catch @panic("OOM");
             }
         }
         collectJuceModules(val, visited, result);
@@ -645,14 +645,13 @@ fn addJuceModules(
 
 fn getJuceModuleAvailableDefs(m: *std.Build.Module) []const []const u8 {
     const b = m.owner;
-    var visited_mods = std.AutoHashMap(*std.Build.Module, void).init(b.allocator);
-    var available_mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
+    var visited_mods: std.AutoHashMapUnmanaged(*std.Build.Module, void) = .empty;
+    var available_mods: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
     collectJuceModules(m, &visited_mods, &available_mods);
 
     var juceModuleAvailableDefs: std.ArrayList([]const u8) = .empty;
-    var key_it = available_mods.keyIterator();
-    while (key_it.next()) |mod_name_ptr| {
-        juceModuleAvailableDefs.append(b.allocator, b.fmt("-DJUCE_MODULE_AVAILABLE_{s}=1", .{mod_name_ptr.*})) catch @panic("OOM");
+    for (available_mods.keys()) |mod_name| {
+        juceModuleAvailableDefs.append(b.allocator, b.fmt("-DJUCE_MODULE_AVAILABLE_{s}=1", .{mod_name})) catch @panic("OOM");
     }
     return juceModuleAvailableDefs.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
@@ -671,14 +670,11 @@ fn addFlagsToLinkObjects(m: *std.Build.Module, flags: []const []const u8) void {
 // Propagate compile flags and this module’s macros to all imported JUCE modules.
 fn propagateFlagsToJuceModules(root_module: *std.Build.Module, flags: []const []const u8) void {
     const b = root_module.owner;
-    var visited_mods = std.AutoHashMap(*std.Build.Module, void).init(b.allocator);
-    var available_mods = std.StringHashMap(*std.Build.Module).init(b.allocator);
+    var visited_mods: std.AutoHashMapUnmanaged(*std.Build.Module, void) = .empty;
+    var available_mods: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
     collectJuceModules(root_module, &visited_mods, &available_mods);
 
-    var value_it = available_mods.valueIterator();
-    while (value_it.next()) |juce_module_ptr| {
-        const juce_module = juce_module_ptr.*;
-
+    for (available_mods.values()) |juce_module| {
         for (root_module.c_macros.items) |macro| {
             juce_module.c_macros.append(b.allocator, macro) catch @panic("OOM");
         }
