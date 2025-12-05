@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_events = @import("juce_events.zig");
 
 pub const name = "juce_osc";
@@ -29,6 +30,9 @@ pub fn addModule(
         .root = upstream.path("modules/juce_osc"),
         .files = &.{"juce_osc.cpp"},
     });
+    if (target.result.os.tag.isDarwin()) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }

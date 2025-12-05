@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_gui_basics = @import("juce_gui_basics.zig");
 
 pub const name = "juce_animation";
@@ -25,11 +26,13 @@ pub fn addModule(
         },
     });
     module.addIncludePath(upstream.path("modules"));
-
     module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_animation"),
         .files = &.{"juce_animation.cpp"},
     });
+    if (target.result.os.tag.isDarwin()) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }

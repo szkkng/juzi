@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_gui_basics = @import("juce_gui_basics.zig");
 
 pub const name = "juce_build_tools";
@@ -30,6 +31,9 @@ pub fn addModule(
         .root = upstream.path("extras/Build/juce_build_tools"),
         .files = &.{"juce_build_tools.cpp"},
     });
+    if (target.result.os.tag.isDarwin()) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }

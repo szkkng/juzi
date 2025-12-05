@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_audio_processors_headless = @import("juce_audio_processors_headless.zig");
 const juce_gui_extra = @import("juce_gui_extra.zig");
 
@@ -36,6 +37,9 @@ pub fn addModule(
         .root = upstream.path("modules/juce_audio_processors"),
         .files = &.{b.fmt("juce_audio_processors.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
+    if (is_darwin) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }

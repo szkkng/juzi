@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_audio_basics = @import("juce_audio_basics.zig");
 
 pub const name = "juce_midi_ci";
@@ -29,6 +30,9 @@ pub fn addModule(
         .root = upstream.path("modules/juce_midi_ci"),
         .files = &.{"juce_midi_ci.cpp"},
     });
+    if (target.result.os.tag.isDarwin()) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }

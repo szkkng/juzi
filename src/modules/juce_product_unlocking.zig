@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_cryptography = @import("juce_cryptography.zig");
 
 pub const name = "juce_product_unlocking";
@@ -31,6 +32,9 @@ pub fn addModule(
         .root = upstream.path("modules/juce_product_unlocking"),
         .files = &.{b.fmt("juce_product_unlocking.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
+    if (is_darwin) {
+        darwin_sdk.addPaths(b, module);
+    }
 
     return module;
 }
