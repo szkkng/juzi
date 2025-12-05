@@ -2,7 +2,7 @@ const std = @import("std");
 const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_core = @import("juce_core.zig");
 
-pub const name = "juce_events";
+pub const name = "juce_cryptography";
 
 pub fn addModule(
     b: *std.Build,
@@ -29,8 +29,8 @@ pub fn addModule(
 
     const is_darwin = target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_events"),
-        .files = &.{b.fmt("juce_events.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .root = upstream.path("modules/juce_cryptography"),
+        .files = &.{b.fmt("juce_cryptography.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
         darwin_sdk.addPaths(b, module);

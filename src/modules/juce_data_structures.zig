@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_events = @import("juce_events.zig");
 
 pub const name = "juce_data_structures";
@@ -13,7 +14,7 @@ pub fn addModule(
         return b.modules.get(name).?;
     }
 
-    const juce_data_structures = b.addModule(name, .{
+    const module = b.addModule(name, .{
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -24,14 +25,16 @@ pub fn addModule(
             },
         },
     });
-    juce_data_structures.addIncludePath(upstream.path("modules"));
-    juce_data_structures.addIncludePath(upstream.path("modules/juce_data_structures"));
+    module.addIncludePath(upstream.path("modules"));
 
     const is_darwin = target.result.os.tag.isDarwin();
-    juce_data_structures.addCSourceFiles(.{
+    module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_data_structures"),
         .files = &.{b.fmt("juce_data_structures.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
+    if (is_darwin) {
+        darwin_sdk.addPaths(b, module);
+    }
 
-    return juce_data_structures;
+    return module;
 }
