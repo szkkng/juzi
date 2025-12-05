@@ -7,7 +7,6 @@ Currently WIP.
 
 - Windows is not supported due to Zig [issue](https://github.com/ziglang/zig/issues/18685).
 - Formats: VST3, AU, Standalone.
-- Only the JUCE modules required to build the examples are supported.
 
 ## Requirements
 
