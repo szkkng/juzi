@@ -1,8 +1,8 @@
 const std = @import("std");
-const juce_audio_processors_headless = @import("juce_audio_processors_headless.zig");
+const darwin_sdk = @import("../darwin.zig").sdk;
 const juce_gui_extra = @import("juce_gui_extra.zig");
 
-pub const name = "juce_audio_processors";
+pub const name = "juce_video";
 
 pub fn addModule(
     b: *std.Build,
@@ -20,10 +20,6 @@ pub fn addModule(
         .link_libcpp = true,
         .imports = &.{
             .{
-                .name = juce_audio_processors_headless.name,
-                .module = juce_audio_processors_headless.addModule(b, upstream, target, optimize),
-            },
-            .{
                 .name = juce_gui_extra.name,
                 .module = juce_gui_extra.addModule(b, upstream, target, optimize),
             },
@@ -33,9 +29,27 @@ pub fn addModule(
 
     const is_darwin = target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_audio_processors"),
-        .files = &.{b.fmt("juce_audio_processors.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .root = upstream.path("modules/juce_video"),
+        .files = &.{b.fmt("juce_video.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
+
+    if (is_darwin) {
+        darwin_sdk.addPaths(b, module);
+    }
+
+    switch (target.result.os.tag) {
+        .macos => {
+            module.linkFramework("AVKit", .{});
+            module.linkFramework("AVFoundation", .{});
+            module.linkFramework("CoreMedia", .{});
+        },
+        .ios => {
+            module.linkFramework("AVKit", .{});
+            module.linkFramework("AVFoundation", .{});
+            module.linkFramework("CoreMedia", .{});
+        },
+        else => {},
+    }
 
     return module;
 }

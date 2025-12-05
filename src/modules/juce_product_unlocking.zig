@@ -1,7 +1,7 @@
 const std = @import("std");
-const juce_core = @import("juce_core.zig");
+const juce_cryptography = @import("juce_cryptography.zig");
 
-pub const name = "juce_events";
+pub const name = "juce_product_unlocking";
 
 pub fn addModule(
     b: *std.Build,
@@ -19,8 +19,8 @@ pub fn addModule(
         .link_libcpp = true,
         .imports = &.{
             .{
-                .name = juce_core.name,
-                .module = juce_core.addModule(b, upstream, target, optimize),
+                .name = juce_cryptography.name,
+                .module = juce_cryptography.addModule(b, upstream, target, optimize),
             },
         },
     });
@@ -28,8 +28,8 @@ pub fn addModule(
 
     const is_darwin = target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_events"),
-        .files = &.{b.fmt("juce_events.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .root = upstream.path("modules/juce_product_unlocking"),
+        .files = &.{b.fmt("juce_product_unlocking.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
 
     return module;
