@@ -126,6 +126,108 @@ You can list all available steps by running:
 zig build -l
 ```
 
+## ProjectConfig fields
+
+These fields correspond to the arguments used in JUCE’s `juce_add_<target>` functions.
+Refer to the [JUCE CMake API documentation](https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md) for detailed behaviour of each option.
+
+If you're using [ZLS](https://github.com/zigtools/zls), your editor can show available
+values and jump to definitions, making it easy to inspect each field.
+
+Note that some fields are not yet implemented.
+
+| `juce_add_<target>` argument | ProjectConfig field |
+| ---------------------------- | ------------------- |
+| `PRODUCT_NAME` | `product_name` |
+| `VERSION` | `version` |
+| `BUILD_VERSION` | `build_version` |
+| `BUNDLE_ID` | `bundle_id` |
+| `MICROPHONE_PERMISSION_ENABLED` | `microphone_permission_enabled` |
+| `MICROPHONE_PERMISSION_TEXT` | `microphone_permission_text` |
+| `CAMERA_PERMISSION_ENABLED` | `camera_permission_enabled` |
+| `CAMERA_PERMISSION_TEXT` | `camera_permission_text` |
+| `BLUETOOTH_PERMISSION_ENABLED` | `bluetooth_permission_enabled` |
+| `BLUETOOTH_PERMISSION_TEXT` | `bluetooth_permission_text` |
+| `LOCAL_NETWORK_PERMISSION_ENABLED` | `local_network_permission_enabled` |
+| `LOCAL_NETWORK_PERMISSION_TEXT` | `local_network_permission_text` |
+| `SEND_APPLE_EVENTS_PERMISSION_ENABLED` | `send_apple_events_permission_enabled` |
+| `SEND_APPLE_EVENTS_PERMISSION_TEXT` | `send_apple_events_permission_text` |
+| `FILE_SHARING_ENABLED` | *(not implemented)* |
+| `DOCUMENT_BROWSER_ENABLED` | *(not implemented)* |
+| `STATUS_BAR_HIDDEN` | *(not implemented)* |
+| `REQUIRES_FULL_SCREEN` | *(not implemented)* |
+| `BACKGROUND_AUDIO_ENABLED` | *(not implemented)* |
+| `BACKGROUND_BLE_ENABLED` | *(not implemented)* |
+| `APP_GROUPS_ENABLED` | *(not implemented)* |
+| `APP_GROUP_IDS` | *(not implemented)* |
+| `ICLOUD_PERMISSIONS_ENABLED` | *(not implemented)* |
+| `IPHONE_SCREEN_ORIENTATIONS` | *(not implemented)* |
+| `IPAD_SCREEN_ORIENTATIONS` | *(not implemented)* |
+| `LAUNCH_STORYBOARD_FILE` | *(not implemented)* |
+| `CUSTOM_XCASSETS_FOLDER` | *(not implemented)* |
+| `TARGETED_DEVICE_FAMILY` | *(not implemented)* |
+| `ICON_BIG` | *(not implemented)* |
+| `ICON_SMALL` | *(not implemented)* |
+| `COMPANY_COPYRIGHT` | `company_copyright` |
+| `COMPANY_NAME` | `company_name` |
+| `COMPANY_WEBSITE` | `company_website` |
+| `COMPANY_EMAIL` | `company_email` |
+| `DOCUMENT_EXTENSIONS` | `document_extensions` |
+| `NEEDS_CURL` | `needs_curl` |
+| `NEEDS_WEB_BROWSER` | `needs_web_browser` |
+| `NEEDS_WEBVIEW2` | `needs_webview2` |
+| `NEEDS_STORE_KIT` | `needs_store_kit` |
+| `PUSH_NOTIFICATIONS_ENABLED` | *(not implemented)* |
+| `NETWORK_MULTICAST_ENABLED` | *(not implemented)* |
+| `HARDENED_RUNTIME_ENABLED` | *(not implemented)* |
+| `HARDENED_RUNTIME_OPTIONS` | *(not implemented)* |
+| `APP_SANDBOX_ENABLED` | *(not implemented)* |
+| `APP_SANDBOX_INHERIT` | *(not implemented)* |
+| `APP_SANDBOX_OPTIONS` | *(not implemented)* |
+| `APP_SANDBOX_FILE_ACCESS_HOME_RO` | *(not implemented)* |
+| `APP_SANDBOX_FILE_ACCESS_HOME_RW` | *(not implemented)* |
+| `APP_SANDBOX_FILE_ACCESS_ABS_RO` | *(not implemented)* |
+| `APP_SANDBOX_FILE_ACCESS_ABS_RW` | *(not implemented)* |
+| `APP_SANDBOX_EXCEPTION_IOKIT` | *(not implemented)* |
+| `PLIST_TO_MERGE` | `plist_to_merge` |
+| `FORMATS` | `formats` |
+| `PLUGIN_NAME` | `plugin_name` |
+| `PLUGIN_MANUFACTURER_CODE` | `plugin_manufacturer_code` |
+| `PLUGIN_CODE` | `plugin_code` |
+| `DESCRIPTION` | `description` |
+| `IS_SYNTH` | `is_synth` |
+| `NEEDS_MIDI_INPUT` | `needs_midi_input` |
+| `NEEDS_MIDI_OUTPUT` | `needs_midi_output` |
+| `IS_MIDI_EFFECT` | `is_midi_effect` |
+| `EDITOR_WANTS_KEYBOARD_FOCUS` | `editor_wants_keyboard_focus` |
+| `DISABLE_AAX_BYPASS` | *(not implemented)* |
+| `DISABLE_AAX_MULTI_MONO` | *(not implemented)* |
+| `AAX_IDENTIFIER` | *(not implemented)* |
+| `LV2URI` | *(not implemented)* |
+| `VST_NUM_MIDI_INS` | `vst_num_midi_ins` |
+| `VST_NUM_MIDI_OUTS` | `vst_num_midi_outs` |
+| `VST2_CATEGORY` | `vst2_category` |
+| `VST3_CATEGORIES` | `vst3_categories` |
+| `AU_MAIN_TYPE` | `au_main_type` |
+| `AU_EXPORT_PREFIX` | `au_export_prefix` |
+| `AU_SANDBOX_SAFE` | `au_sandbox_safe` |
+| `SUPPRESS_AU_PLIST_RESOURCE_USAGE` | `suppress_au_plist_resource_usage` |
+| `AAX_CATEGORY` | *(not implemented)* |
+| `PLUGINHOST_AU` | *(not implemented)* |
+| `USE_LEGACY_COMPATIBILITY_PLUGIN_CODE` | `use_legacy_compatibility_plugin_code` |
+| `COPY_PLUGIN_AFTER_BUILD` | *(not implemented)* |
+| `VST_COPY_DIR` | *(not implemented)* |
+| `VST3_COPY_DIR` | *(not implemented)* |
+| `AAX_COPY_DIR` | *(not implemented)* |
+| `AU_COPY_DIR` | *(not implemented)* |
+| `UNITY_COPY_DIR` | *(not implemented)* |
+| `IS_ARA_EFFECT` | *(not implemented)* |
+| `ARA_FACTORY_ID` | *(not implemented)* |
+| `ARA_DOCUMENT_ARCHIVE_ID` | *(not implemented)* |
+| `ARA_ANALYSIS_TYPES` | *(not implemented)* |
+| `ARA_TRANSFORMATION_FLAGS` | *(not implemented)* |
+| `VST3_AUTO_MANIFEST` | `vst3_auto_manifest` |
+
 ## Generating compile_commands.json
 
 Zig doesn't currently support generating `compile_commands.json`.  
