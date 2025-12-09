@@ -7,10 +7,8 @@ pub const CreateOptions = struct {
     files: []const []const u8,
 };
 
-pub fn create(juceaide: Juceaide, options: CreateOptions) *std.Build.Step.Compile {
+pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, options: CreateOptions) *std.Build.Step.Compile {
     const b = juceaide.artifact.root_module.owner;
-    const target = juceaide.target;
-    const optimize = juceaide.optimize;
 
     const binary_data_lib = b.addLibrary(.{
         .name = "binary_data",

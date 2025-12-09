@@ -1,42 +1,38 @@
+pub const juce_module = JuceModule.init("juce_gui_extra", createModule);
+
 const std = @import("std");
 const darwin_sdk = @import("../darwin.zig").sdk;
-const juce_gui_basics = @import("juce_gui_basics.zig");
+const JuceModule = @import("../JuceModule.zig");
+const juce_gui_basics = @import("juce_gui_basics.zig").juce_module;
 
-pub const name = "juce_gui_extra";
-
-pub fn addModule(
-    b: *std.Build,
-    upstream: *std.Build.Dependency,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-) *std.Build.Module {
-    if (b.modules.contains(name)) {
-        return b.modules.get(name).?;
+fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
+    if (ctx.visited.contains(juce_module.name)) {
+        return ctx.visited.get(juce_module.name).?;
     }
 
-    const module = b.addModule(name, .{
-        .target = target,
-        .optimize = optimize,
+    const module = ctx.builder.createModule(.{
+        .target = ctx.target,
+        .optimize = ctx.optimize,
         .link_libcpp = true,
         .imports = &.{
             .{
                 .name = juce_gui_basics.name,
-                .module = juce_gui_basics.addModule(b, upstream, target, optimize),
+                .module = juce_gui_basics.createModule(ctx),
             },
         },
     });
-    module.addIncludePath(upstream.path("modules"));
+    module.addIncludePath(ctx.upstream.path("modules"));
 
-    const is_darwin = target.result.os.tag.isDarwin();
+    const is_darwin = ctx.target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_gui_extra"),
-        .files = &.{b.fmt("juce_gui_extra.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .root = ctx.upstream.path("modules/juce_gui_extra"),
+        .files = &.{ctx.builder.fmt("juce_gui_extra.{s}", .{if (is_darwin) "mm" else "cpp"})},
     });
     if (is_darwin) {
-        darwin_sdk.addPaths(b, module);
+        darwin_sdk.addPaths(ctx.builder, module);
     }
 
-    switch (target.result.os.tag) {
+    switch (ctx.target.result.os.tag) {
         .macos => {
             module.linkFramework("WebKit", .{});
             module.linkFramework("UserNotifications", .{ .weak = true });
@@ -47,6 +43,8 @@ pub fn addModule(
         },
         else => {},
     }
+
+    ctx.visited.put(ctx.builder.allocator, juce_module.name, module) catch @panic("OOM");
 
     return module;
 }

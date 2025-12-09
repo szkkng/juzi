@@ -1,44 +1,55 @@
 const std = @import("std");
 const Juceaide = @This();
+const Setup = @import("Setup.zig");
+const juce_build_tools = @import("modules/juce_build_tools.zig").juce_module;
 
-upstream: *std.Build.Dependency,
-target: std.Build.ResolvedTarget,
-optimize: std.builtin.OptimizeMode,
 artifact: *std.Build.Step.Compile,
-juce_modules_lib: *std.Build.Step.Compile,
-
-pub const InitOptions = struct {
-    upstream: *std.Build.Dependency,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    juce_modules_lib: *std.Build.Step.Compile,
-};
 
 pub fn create(
     b: *std.Build,
-    options: InitOptions,
+    juzi_dep: *std.Build.Dependency,
+    target: std.Build.ResolvedTarget,
 ) Juceaide {
+    const juce_src = juzi_dep.builder.dependency("upstream", .{});
+
+    const mod = b.createModule(.{
+        .target = target,
+        .optimize = .Debug,
+        .link_libcpp = true,
+    });
+    mod.addIncludePath(juce_src.path("modules"));
+    mod.addIncludePath(juce_src.path("extras/Build"));
+    mod.addCSourceFiles(.{
+        .root = juce_src.path("extras/Build/juceaide"),
+        .files = &.{"Main.cpp"},
+    });
+    var available_modules: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
+    mod.addImport(juce_build_tools.name, juce_build_tools.createModule(.{
+        .builder = b,
+        .visited = &available_modules,
+        .upstream = juce_src,
+        .target = target,
+        .optimize = .Debug,
+    }));
+
+    var flags = std.ArrayList([]const u8).empty;
+    flags.appendSlice(b.allocator, Setup.getJuceModuleAvailableDefs(b, &available_modules)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, Setup.getJuceStandardDefs(b, .Debug)) catch @panic("OOM");
+    flags.appendSlice(b.allocator, Setup.getJuceCommonFlags(b, target, .Debug)) catch @panic("OOM");
+    flags.append(b.allocator, "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1") catch @panic("OOM");
+    flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
+    Setup.addFlagsToLinkObjects(mod, flags.items);
+
+    for (available_modules.values()) |m| {
+        Setup.addFlagsToLinkObjects(m, flags.items);
+    }
+
     const juceaide = b.addExecutable(.{
         .name = "juceaide",
-        .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
-            .link_libcpp = true,
-        }),
-    });
-    juceaide.root_module.linkLibrary(options.juce_modules_lib);
-    juceaide.root_module.addIncludePath(options.upstream.path("modules"));
-    juceaide.root_module.addIncludePath(options.upstream.path("extras/Build"));
-    juceaide.root_module.addCSourceFiles(.{
-        .root = options.upstream.path("extras/Build/juceaide"),
-        .files = &.{"Main.cpp"},
+        .root_module = mod,
     });
 
     return .{
-        .upstream = options.upstream,
-        .target = options.target,
-        .optimize = options.optimize,
-        .juce_modules_lib = options.juce_modules_lib,
         .artifact = juceaide,
     };
 }
