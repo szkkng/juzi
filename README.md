@@ -70,7 +70,7 @@ pub fn build(b: *std.Build) void {
     });
 
     // Initialize juzi setup using this module and the juzi dependency.
-    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
+    const juzi_dep = b.dependency("juzi", .{});
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
 
     // Configure JUCE-related preprocessor macros.
@@ -87,7 +87,7 @@ pub fn build(b: *std.Build) void {
 
     // After configuring juzi, add plugin targets for the selected formats.
     const plugin = juzi_setup.addPlugin(.{
-        .juce_modules = &.{.juce_audio_utils},
+        .juce_modules = &.{juzi.modules.juce_audio_utils},
         .config = config,
     });
 
