@@ -8,7 +8,7 @@ const PluginMacros = @import("plugin/macros.zig");
 const ProjectConfig = @import("ProjectConfig.zig");
 
 pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
-pub const JuceModule = @import("modules.zig").JuceModule;
+pub const JuceModule = @import("JuceModule.zig");
 
 juzi_dep: *std.Build.Dependency,
 root_module: *std.Build.Module,
@@ -54,42 +54,36 @@ pub fn addConsoleApp(
     flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    var juce_modules = std.ArrayList(JuceModule).empty;
-    for (options.juce_modules) |module| {
-        juce_modules.append(b.allocator, module) catch @panic("OOM");
-    }
-    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
+    var available_modules: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
 
-    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
-        .target = target,
-        .optimize = optimize,
-        .juce_modules = juce_modules.items,
-    });
-    for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
+    for (options.juce_modules) |module| {
+        self.root_module.addImport(module.name, module.createModule(.{
+            .builder = b,
+            .visited = &available_modules,
+            .target = target,
+            .optimize = optimize,
+            .upstream = upstream,
+        }));
+    }
+
+    for (getJuceModuleAvailableDefs(b, &available_modules)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
+    propagateFlagsToJuceModules(self.root_module, flags.items);
 
-    const juceaide = Juceaide.create(b, .{
-        .upstream = upstream,
-        .target = target,
-        .optimize = optimize,
-        .juce_modules_lib = juce_modules_lib,
-    });
-    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
+    const juceaide = Juceaide.create(b, self.juzi_dep, target);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
         .root_module = self.root_module,
     });
-    console_app.root_module.linkLibrary(juce_modules_lib);
     linkOptionalLibraries(console_app.root_module, options.config);
 
     addFlagsToLinkObjects(console_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |opts| {
-            const binary_data_lib = BinaryData.create(juceaide, opts);
+            const binary_data_lib = BinaryData.create(juceaide, target, optimize, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -99,8 +93,6 @@ pub fn addConsoleApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, console_app.root_module);
     }
 
@@ -134,42 +126,36 @@ pub fn addGuiApp(
     flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
 
-    var juce_modules: std.ArrayList(JuceModule) = .empty;
-    for (options.juce_modules) |module| {
-        juce_modules.append(b.allocator, module) catch @panic("OOM");
-    }
-    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
+    var available_modules: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
 
-    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
-        .target = target,
-        .optimize = optimize,
-        .juce_modules = juce_modules.items,
-    });
-    for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
+    for (options.juce_modules) |module| {
+        self.root_module.addImport(module.name, module.createModule(.{
+            .builder = b,
+            .visited = &available_modules,
+            .target = target,
+            .optimize = optimize,
+            .upstream = upstream,
+        }));
+    }
+
+    for (getJuceModuleAvailableDefs(b, &available_modules)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
+    propagateFlagsToJuceModules(self.root_module, flags.items);
 
-    const juceaide = Juceaide.create(b, .{
-        .upstream = upstream,
-        .target = target,
-        .optimize = optimize,
-        .juce_modules_lib = juce_modules_lib,
-    });
-    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
+    const juceaide = Juceaide.create(b, self.juzi_dep, target);
 
     const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
         .name = product_name,
         .root_module = self.root_module,
     });
-    gui_app.root_module.linkLibrary(juce_modules_lib);
     linkOptionalLibraries(gui_app.root_module, options.config);
     addFlagsToLinkObjects(gui_app.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |opts| {
-            const binary_data_lib = BinaryData.create(juceaide, opts);
+            const binary_data_lib = BinaryData.create(juceaide, target, optimize, opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -179,8 +165,6 @@ pub fn addGuiApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, gui_app.root_module);
     }
 
@@ -242,41 +226,35 @@ pub fn addPlugin(
     const plugin_macros = PluginMacros.getPluginMacros(b, options.config) catch @panic("OOM");
     flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
-    var juce_modules: std.ArrayList(JuceModule) = .empty;
-    for (options.juce_modules) |module| {
-        juce_modules.append(b.allocator, module) catch @panic("OOM");
-    }
-    juce_modules.append(b.allocator, .juce_build_tools) catch @panic("OOM");
+    var available_modules: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
 
-    const juce_modules_lib = addJuceModules(b, self.juzi_dep, .{
-        .target = target,
-        .optimize = optimize,
-        .juce_modules = juce_modules.items,
-    });
-    for (getJuceModuleAvailableDefs(juce_modules_lib.root_module)) |flag| {
+    for (options.juce_modules) |module| {
+        self.root_module.addImport(module.name, module.createModule(.{
+            .builder = b,
+            .visited = &available_modules,
+            .target = target,
+            .optimize = optimize,
+            .upstream = upstream,
+        }));
+    }
+
+    for (getJuceModuleAvailableDefs(b, &available_modules)) |flag| {
         flags.append(b.allocator, flag) catch @panic("OOM");
     }
-    propagateFlagsToJuceModules(juce_modules_lib.root_module, flags.items);
+    propagateFlagsToJuceModules(self.root_module, flags.items);
 
-    const juceaide = Juceaide.create(b, .{
-        .upstream = upstream,
-        .target = target,
-        .optimize = optimize,
-        .juce_modules_lib = juce_modules_lib,
-    });
-    addFlagsToLinkObjects(juceaide.artifact.root_module, flags.items);
+    const juceaide = Juceaide.create(b, self.juzi_dep, target);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
-    plugin_shared_lib.linkLibrary(juce_modules_lib);
     linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, flags.items);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
-            const binary_data_lib = BinaryData.create(juceaide, bd_opts);
+            const binary_data_lib = BinaryData.create(juceaide, target, optimize, bd_opts);
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
@@ -286,8 +264,6 @@ pub fn addPlugin(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, juce_modules_lib.root_module);
-        darwin.sdk.addPaths(b, juceaide.artifact.root_module);
         darwin.sdk.addPaths(b, plugin_shared_lib.root_module);
     }
 
@@ -532,7 +508,7 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
     }
 }
 
-fn getJuceCommonFlags(
+pub fn getJuceCommonFlags(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
@@ -575,7 +551,7 @@ fn getJuceCommonFlags(
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
-fn getJuceStandardDefs(
+pub fn getJuceStandardDefs(
     b: *std.Build,
     optimize: std.builtin.OptimizeMode,
 ) []const []const u8 {
@@ -617,38 +593,10 @@ fn collectJuceModules(
     }
 }
 
-const AddJuceModulesOptions = struct {
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
-    juce_modules: []const JuceModule,
-};
-
-fn addJuceModules(
+pub fn getJuceModuleAvailableDefs(
     b: *std.Build,
-    juzi_dep: *std.Build.Dependency,
-    options: AddJuceModulesOptions,
-) *std.Build.Step.Compile {
-    const juce_modules_lib = b.addLibrary(.{
-        .name = "juce_modules",
-        .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
-            .link_libcpp = true,
-        }),
-    });
-    for (options.juce_modules) |module| {
-        juce_modules_lib.root_module.addImport(@tagName(module), juzi_dep.module(@tagName(module)));
-    }
-
-    return juce_modules_lib;
-}
-
-fn getJuceModuleAvailableDefs(m: *std.Build.Module) []const []const u8 {
-    const b = m.owner;
-    var visited_mods: std.AutoHashMapUnmanaged(*std.Build.Module, void) = .empty;
-    var available_mods: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
-    collectJuceModules(m, &visited_mods, &available_mods);
-
+    available_mods: *std.StringArrayHashMapUnmanaged(*std.Build.Module),
+) []const []const u8 {
     var juceModuleAvailableDefs: std.ArrayList([]const u8) = .empty;
     for (available_mods.keys()) |mod_name| {
         juceModuleAvailableDefs.append(b.allocator, b.fmt("-DJUCE_MODULE_AVAILABLE_{s}=1", .{mod_name})) catch @panic("OOM");
@@ -656,7 +604,7 @@ fn getJuceModuleAvailableDefs(m: *std.Build.Module) []const []const u8 {
     return juceModuleAvailableDefs.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
-fn addFlagsToLinkObjects(m: *std.Build.Module, flags: []const []const u8) void {
+pub fn addFlagsToLinkObjects(m: *std.Build.Module, flags: []const []const u8) void {
     const b = m.owner;
     for (m.link_objects.items) |lobj| {
         switch (lobj) {

@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
+    const juzi_dep = b.dependency("juzi", .{});
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
     juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     // });
 
     const console_app = juzi_setup.addConsoleApp(.{
-        .juce_modules = &.{.juce_core},
+        .juce_modules = &.{juzi.modules.juce_core},
         .config = config,
     });
     b.installArtifact(console_app.artifact);

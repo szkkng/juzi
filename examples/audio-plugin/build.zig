@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const juzi_dep = b.dependency("juzi", .{ .target = target, .optimize = optimize });
+    const juzi_dep = b.dependency("juzi", .{});
     var juzi_setup = juzi.Setup.init(juzi_dep, module);
     juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
     juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
@@ -44,7 +44,7 @@ pub fn build(b: *std.Build) void {
     // });
 
     const plugin = juzi_setup.addPlugin(.{
-        .juce_modules = &.{.juce_audio_utils},
+        .juce_modules = &.{juzi.modules.juce_audio_utils},
         .config = config,
     });
 
