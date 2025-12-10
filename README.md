@@ -1,7 +1,6 @@
 # juzi
 
 Build JUCE projects using the Zig build system.  
-Currently WIP.
 
 ## Limitations
 
