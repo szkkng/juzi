@@ -1,6 +1,6 @@
 .{
     .name = .juzi,
-    .version = "0.0.1",
+    .version = "0.1.0",
     .minimum_zig_version = "0.15.2",
     .fingerprint = 0xc65b2a4087017892,
     .dependencies = .{
