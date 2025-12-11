@@ -6,11 +6,13 @@ on:
     paths-ignore:
       - "**.md"
       - "**/.gitignore"
+      - "**/.gitattributes"
   pull_request:
     branches: ["main"]
     paths-ignore:
       - "**.md"
       - "**/.gitignore"
+      - "**/.gitattributes"
   workflow_dispatch:
     inputs:
       build-plugin:
