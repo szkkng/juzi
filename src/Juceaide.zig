@@ -11,10 +11,11 @@ pub fn create(
     target: std.Build.ResolvedTarget,
 ) Juceaide {
     const juce_src = juzi_dep.builder.dependency("upstream", .{});
+    const optimize = .Debug;
 
     const mod = b.createModule(.{
         .target = target,
-        .optimize = .Debug,
+        .optimize = optimize,
         .link_libcpp = true,
     });
     mod.addIncludePath(juce_src.path("modules"));
@@ -29,13 +30,16 @@ pub fn create(
         .visited = &available_modules,
         .upstream = juce_src,
         .target = target,
-        .optimize = .Debug,
+        .optimize = optimize,
     }));
 
     var flags = std.ArrayList([]const u8).empty;
+
+    // Build juceaide in Debug to keep compile time down,
+    // but use a non-Debug optimize mode here to still add -DNDEBUG=1 -D_NDEBUG=1.
+    flags.appendSlice(b.allocator, Setup.getJuceCommonFlags(b, target, .ReleaseFast)) catch @panic("OOM");
+
     flags.appendSlice(b.allocator, Setup.getJuceModuleAvailableDefs(b, &available_modules)) catch @panic("OOM");
-    flags.appendSlice(b.allocator, Setup.getJuceStandardDefs(b, .Debug)) catch @panic("OOM");
-    flags.appendSlice(b.allocator, Setup.getJuceCommonFlags(b, target, .Debug)) catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1") catch @panic("OOM");
     flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
     Setup.addFlagsToLinkObjects(mod, flags.items);
@@ -49,7 +53,5 @@ pub fn create(
         .root_module = mod,
     });
 
-    return .{
-        .artifact = juceaide,
-    };
+    return .{ .artifact = juceaide };
 }

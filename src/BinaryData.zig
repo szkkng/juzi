@@ -38,15 +38,8 @@ pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: st
         options.namespace,
         b.fmt("{s}.h", .{options.header_name}),
     });
-    // The fourth juceaide argument (the BinaryData output directory) is currently
-    // passed as a relative path, which triggers the assertion
-    // “JUCE Assertion failure in juce_File.cpp:219”. The build still works, so
-    // the output is suppressed here just to keep the logs clean.
-    // Is there a good way to provide an absolute path instead?
     binary_data_cmd.addDirectoryArg(output_dir);
     binary_data_cmd.addFileArg(input_list_file);
-    binary_data_cmd.has_side_effects = true;
-    _ = binary_data_cmd.captureStdErr();
 
     binary_data_lib.root_module.addCSourceFiles(.{
         .root = output_dir,

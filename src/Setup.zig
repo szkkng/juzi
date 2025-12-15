@@ -551,7 +551,7 @@ pub fn getJuceCommonFlags(
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
-pub fn getJuceStandardDefs(
+fn getJuceStandardDefs(
     b: *std.Build,
     optimize: std.builtin.OptimizeMode,
 ) []const []const u8 {

@@ -72,8 +72,6 @@ pub fn addInstallInfoPlist(
             .{ config.product_name, kind.bundleTypeIdentifier() },
         ),
     );
-    // Suppress the "JUCE vX.X.X" banner to keep the build logs clean.
-    _ = plist_cmd.captureStdErr();
 
     return install_plist;
 }
@@ -99,8 +97,6 @@ pub fn addInstallPkgInfo(
             .{ product_name, kind.bundleTypeIdentifier() },
         ),
     );
-    // Suppress the "JUCE vX.X.X" banner to keep the build logs clean.
-    _ = pkginfo_cmd.captureStdErr();
 
     return install_pkginfo;
 }
