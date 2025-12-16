@@ -6,7 +6,6 @@ pub const BuildContext = struct {
     visited: *std.StringArrayHashMapUnmanaged(*std.Build.Module),
     upstream: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
 };
 
 name: []const u8,

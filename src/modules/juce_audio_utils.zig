@@ -14,7 +14,6 @@ fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
 
     const module = ctx.builder.createModule(.{
         .target = ctx.target,
-        .optimize = ctx.optimize,
         .link_libcpp = true,
         .imports = &.{
             .{

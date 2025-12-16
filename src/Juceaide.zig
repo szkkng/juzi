@@ -30,7 +30,6 @@ pub fn create(
         .visited = &available_modules,
         .upstream = juce_src,
         .target = target,
-        .optimize = optimize,
     }));
 
     var flags = std.ArrayList([]const u8).empty;

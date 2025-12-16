@@ -61,7 +61,6 @@ pub fn addConsoleApp(
             .builder = b,
             .visited = &available_modules,
             .target = target,
-            .optimize = optimize,
             .upstream = upstream,
         }));
     }
@@ -133,7 +132,6 @@ pub fn addGuiApp(
             .builder = b,
             .visited = &available_modules,
             .target = target,
-            .optimize = optimize,
             .upstream = upstream,
         }));
     }
@@ -233,7 +231,6 @@ pub fn addPlugin(
             .builder = b,
             .visited = &available_modules,
             .target = target,
-            .optimize = optimize,
             .upstream = upstream,
         }));
     }
