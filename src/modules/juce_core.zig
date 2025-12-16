@@ -13,7 +13,6 @@ fn createModule(
 
     const mod = ctx.builder.createModule(.{
         .target = ctx.target,
-        .optimize = ctx.optimize,
         .link_libcpp = true,
     });
     mod.addIncludePath(ctx.upstream.path("modules"));

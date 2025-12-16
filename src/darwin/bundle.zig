@@ -41,11 +41,11 @@ pub fn addInstallBundle(
 ) *std.Build.Step.InstallArtifact {
     const b = artifact.step.owner;
     const bundle_subpath = b.fmt("{s}.{s}/Contents/MacOS", .{ artifact.name, kind.bundleTypeIdentifier() });
-    const install_gui_app = b.addInstallArtifact(artifact, .{
+    const install_bundle = b.addInstallArtifact(artifact, .{
         .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
         .dest_sub_path = artifact.name,
     });
-    return install_gui_app;
+    return install_bundle;
 }
 
 // Creates the install step for generating and installing the bundle's Info.plist.
