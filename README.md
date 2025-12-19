@@ -13,7 +13,7 @@ Build JUCE projects using the Zig build system.
 
 ## Dependencies
 
-- JUCE v8.0.11 (automatically fetched by the Zig build system)
+- JUCE v8.0.12 (automatically fetched by the Zig build system)
 
 ## Usage
 
