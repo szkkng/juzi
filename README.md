@@ -4,8 +4,8 @@ Build JUCE projects using the Zig build system.
 
 ## Limitations
 
-- Windows is not supported due to Zig [issue](https://github.com/ziglang/zig/issues/18685).
-- Formats: VST3, AU, Standalone.
+- Supported OS: macOS, Linux
+- Supported formats: VST3, AU, Standalone
 
 ## Requirements
 
