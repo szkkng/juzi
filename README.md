@@ -21,7 +21,7 @@ Build JUCE audio plugins using the Zig build system.
 
 ## Requirements
 
-- Zig v0.15.2
+- Zig v0.16.0
 
 ## Dependencies
 
