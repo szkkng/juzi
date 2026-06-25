@@ -1,8 +1,20 @@
 # juzi
 
-Build JUCE projects using the Zig build system.  
+Build JUCE audio plugins using the Zig build system.
 
-## Limitations
+## Goals
+
+- Build JUCE audio plugins
+- Support Linux, macOS, and Windows
+- Stay close to the JUCE CMake API
+
+## Non-goals
+
+- Provide full compatibility with the JUCE CMake API
+- Support every audio plugin format
+- Support mobile platforms
+
+## Current limitations
 
 - Supported OS: macOS, Linux
 - Supported formats: VST3, AU, Standalone
