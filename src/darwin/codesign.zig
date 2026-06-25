@@ -12,6 +12,6 @@ pub fn addAdhocCodeSign(
         artifact_path,
     });
     adhoc_sign_cmd.has_side_effects = true;
-    _ = adhoc_sign_cmd.captureStdErr();
+    _ = adhoc_sign_cmd.captureStdErr(.{});
     return adhoc_sign_cmd;
 }

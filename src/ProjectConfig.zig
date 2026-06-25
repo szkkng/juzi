@@ -258,7 +258,7 @@ fn makeCIdentifier(allocator: std.mem.Allocator, input: []const u8) []const u8 {
 }
 
 fn makeValid4cc(b: *std.Build) []const u8 {
-    var prng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp()));
+    var prng = std.Random.DefaultPrng.init(@intCast(std.Io.Clock.now(.real, b.graph.io).toMilliseconds()));
     const random = prng.random();
     var result: [4]u8 = undefined;
     for (0..4) |i| {

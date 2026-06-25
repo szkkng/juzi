@@ -32,7 +32,7 @@ pub fn addInstallModuleInfo(
     });
 
     const manifest_helper_cmd = b.addRunArtifact(manifest_helper);
-    const out_module_info = manifest_helper_cmd.captureStdOut();
+    const out_module_info = manifest_helper_cmd.captureStdOut(.{});
     const install_module_info = b.addInstallFileWithDir(
         out_module_info,
         .prefix,
