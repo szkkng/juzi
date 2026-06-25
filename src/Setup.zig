@@ -87,7 +87,7 @@ pub fn addConsoleApp(
                 self.root_module.addIncludePath(include_dir.path);
             }
             binary_data = binary_data_lib;
-            console_app.linkLibrary(binary_data_lib);
+            console_app.root_module.linkLibrary(binary_data_lib);
         }
     }
 
@@ -158,7 +158,7 @@ pub fn addGuiApp(
                 self.root_module.addIncludePath(include_dir.path);
             }
             binary_data = binary_data_lib;
-            gui_app.linkLibrary(binary_data_lib);
+            gui_app.root_module.linkLibrary(binary_data_lib);
         }
     }
 
@@ -256,7 +256,7 @@ pub fn addPlugin(
                 self.root_module.addIncludePath(include_dir.path);
             }
             result.binary_data = binary_data_lib;
-            plugin_shared_lib.linkLibrary(binary_data_lib);
+            plugin_shared_lib.root_module.linkLibrary(binary_data_lib);
         }
     }
 
@@ -303,7 +303,7 @@ pub fn addPlugin(
                     .name = b.fmt("{s}", .{config.product_name}),
                     .root_module = vst3_module,
                 });
-                vst3.linkLibrary(plugin_shared_lib);
+                vst3.root_module.linkLibrary(plugin_shared_lib);
 
                 switch (target.result.os.tag) {
                     .macos => {
@@ -387,7 +387,7 @@ pub fn addPlugin(
                     .name = b.fmt("{s}", .{config.product_name}),
                     .root_module = au_module,
                 });
-                au.linkLibrary(plugin_shared_lib);
+                au.root_module.linkLibrary(plugin_shared_lib);
 
                 const install_au = darwin.bundle.addInstallBundle(au, .{ .plugin = .au });
                 const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
@@ -429,7 +429,7 @@ pub fn addPlugin(
                     .name = config.product_name,
                     .root_module = standalone_module,
                 });
-                standalone.linkLibrary(plugin_shared_lib);
+                standalone.root_module.linkLibrary(plugin_shared_lib);
 
                 const standalone_step = b.step("standalone", "Build standalone");
 
