@@ -1,35 +1,23 @@
-pub const juce_module = JuceModule.init("juce_animation", createModule);
-
 const std = @import("std");
-const darwin_sdk = @import("../darwin.zig").sdk;
 const JuceModule = @import("../JuceModule.zig");
-const juce_gui_basics = @import("juce_gui_basics.zig").juce_module;
 
-fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
-    if (ctx.visited.contains(juce_module.name)) {
-        return ctx.visited.get(juce_module.name).?;
-    }
+pub const juce_module: JuceModule = .{
+    .name = "juce_animation",
+    .deps = &.{@import("juce_gui_basics.zig").juce_module},
+    .create = create,
+};
 
+fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     const module = ctx.builder.createModule(.{
         .target = ctx.target,
+        .optimize = ctx.optimize,
         .link_libcpp = true,
-        .imports = &.{
-            .{
-                .name = juce_gui_basics.name,
-                .module = juce_gui_basics.createModule(ctx),
-            },
-        },
     });
-    module.addIncludePath(ctx.upstream.path("modules"));
+    module.addIncludePath(ctx.juce.path("modules"));
     module.addCSourceFiles(.{
-        .root = ctx.upstream.path("modules/juce_animation"),
+        .root = ctx.juce.path("modules/juce_animation"),
         .files = &.{"juce_animation.cpp"},
+        .flags = ctx.juce_required_flags.cxx,
     });
-    if (ctx.target.result.os.tag.isDarwin()) {
-        darwin_sdk.addPaths(ctx.builder, module);
-    }
-
-    ctx.visited.put(ctx.builder.allocator, juce_module.name, module) catch @panic("OOM");
-
     return module;
 }

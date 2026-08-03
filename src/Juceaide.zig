@@ -24,28 +24,26 @@ pub fn create(
         .root = juce_src.path("extras/Build/juceaide"),
         .files = &.{"Main.cpp"},
     });
-    var available_modules: std.StringArrayHashMapUnmanaged(*std.Build.Module) = .empty;
-    mod.addImport(juce_build_tools.name, juce_build_tools.createModule(.{
+    const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
+    const required_flags = Setup.resolveJuceRequiredFlags(
+        b,
+        target,
+        optimize,
+        juce_modules,
+        mod.c_macros.items,
+        &.{
+            "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
+            "-DJUCE_STANDALONE_APPLICATION=1",
+        },
+    );
+    Setup.addJuceModules(mod, juce_modules, .{
         .builder = b,
-        .visited = &available_modules,
-        .upstream = juce_src,
+        .juce = juce_src,
         .target = target,
-    }));
-
-    var flags = std.ArrayList([]const u8).empty;
-
-    // Build juceaide in Debug to keep compile time down,
-    // but use a non-Debug optimize mode here to still add -DNDEBUG=1 -D_NDEBUG=1.
-    flags.appendSlice(b.allocator, Setup.getJuceCommonFlags(b, target, .ReleaseFast)) catch @panic("OOM");
-
-    flags.appendSlice(b.allocator, Setup.getJuceModuleAvailableDefs(b, &available_modules)) catch @panic("OOM");
-    flags.append(b.allocator, "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1") catch @panic("OOM");
-    flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
-    Setup.addFlagsToLinkObjects(mod, flags.items);
-
-    for (available_modules.values()) |m| {
-        Setup.addFlagsToLinkObjects(m, flags.items);
-    }
+        .optimize = optimize,
+        .juce_required_flags = required_flags,
+    });
+    Setup.addFlagsToLinkObjects(mod, required_flags.cxx);
 
     const juceaide = b.addExecutable(.{
         .name = "juceaide",

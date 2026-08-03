@@ -1,44 +1,36 @@
-pub const juce_module = JuceModule.init("juce_graphics", createModule);
-
 const std = @import("std");
-const darwin_sdk = @import("../darwin.zig").sdk;
 const JuceModule = @import("../JuceModule.zig");
-const juce_events = @import("juce_events.zig").juce_module;
 
-fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
-    if (ctx.visited.contains(juce_module.name)) {
-        return ctx.visited.get(juce_module.name).?;
-    }
+pub const juce_module: JuceModule = .{
+    .name = "juce_graphics",
+    .deps = &.{@import("juce_events.zig").juce_module},
+    .create = create,
+};
 
+fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     const module = ctx.builder.createModule(.{
         .target = ctx.target,
-        .link_libc = true,
+        .optimize = ctx.optimize,
         .link_libcpp = true,
-        .imports = &.{
-            .{
-                .name = juce_events.name,
-                .module = juce_events.createModule(ctx),
-            },
-        },
     });
-    module.addIncludePath(ctx.upstream.path("modules"));
+    module.addIncludePath(ctx.juce.path("modules"));
     module.addCSourceFiles(.{
-        .root = ctx.upstream.path("modules/juce_graphics"),
-        .files = &.{
-            "juce_graphics_Harfbuzz.cpp",
-            "juce_graphics_Sheenbidi.c",
-        },
+        .root = ctx.juce.path("modules/juce_graphics"),
+        .files = &.{"juce_graphics_Harfbuzz.cpp"},
+        .flags = ctx.juce_required_flags.cxx,
+    });
+    module.addCSourceFiles(.{
+        .root = ctx.juce.path("modules/juce_graphics"),
+        .files = &.{"juce_graphics_Sheenbidi.c"},
+        .flags = ctx.juce_required_flags.c,
     });
 
     const is_darwin = ctx.target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
-        .root = ctx.upstream.path("modules/juce_graphics"),
+        .root = ctx.juce.path("modules/juce_graphics"),
         .files = &.{ctx.builder.fmt("juce_graphics.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .flags = ctx.juce_required_flags.cxx,
     });
-    if (is_darwin) {
-        darwin_sdk.addPaths(ctx.builder, module);
-    }
-
     switch (ctx.target.result.os.tag) {
         .macos => {
             module.linkFramework("Cocoa", .{});
@@ -56,8 +48,6 @@ fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
         },
         else => {},
     }
-
-    ctx.visited.put(ctx.builder.allocator, juce_module.name, module) catch @panic("OOM");
 
     return module;
 }

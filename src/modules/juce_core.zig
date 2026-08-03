@@ -1,56 +1,52 @@
-pub const juce_module = JuceModule.init("juce_core", createModule);
-
 const std = @import("std");
-const darwin_sdk = @import("../darwin.zig").sdk;
 const JuceModule = @import("../JuceModule.zig");
 
-fn createModule(
+pub const juce_module: JuceModule = .{
+    .name = "juce_core",
+    .deps = &.{},
+    .create = create,
+};
+
+fn create(
     ctx: JuceModule.BuildContext,
 ) *std.Build.Module {
-    if (ctx.visited.contains(juce_module.name)) {
-        return ctx.visited.get(juce_module.name).?;
-    }
-
-    const mod = ctx.builder.createModule(.{
+    const module = ctx.builder.createModule(.{
         .target = ctx.target,
+        .optimize = ctx.optimize,
         .link_libcpp = true,
     });
-    mod.addIncludePath(ctx.upstream.path("modules"));
-    mod.addCSourceFiles(.{
-        .root = ctx.upstream.path("modules"),
+    module.addIncludePath(ctx.juce.path("modules"));
+    module.addCSourceFiles(.{
+        .root = ctx.juce.path("modules"),
         .files = &.{
             "juce_core/juce_core_CompilationTime.cpp",
         },
+        .flags = ctx.juce_required_flags.cxx,
     });
 
     const is_darwin = ctx.target.result.os.tag.isDarwin();
-    mod.addCSourceFiles(.{
-        .root = ctx.upstream.path("modules/juce_core"),
+    module.addCSourceFiles(.{
+        .root = ctx.juce.path("modules/juce_core"),
         .files = &.{ctx.builder.fmt("juce_core.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .flags = ctx.juce_required_flags.cxx,
     });
-    if (is_darwin) {
-        darwin_sdk.addPaths(ctx.builder, mod);
-    }
-
     switch (ctx.target.result.os.tag) {
         .macos => {
-            mod.linkFramework("Cocoa", .{});
-            mod.linkFramework("Foundation", .{});
-            mod.linkFramework("IOKit", .{});
-            mod.linkFramework("Security", .{});
+            module.linkFramework("Cocoa", .{});
+            module.linkFramework("Foundation", .{});
+            module.linkFramework("IOKit", .{});
+            module.linkFramework("Security", .{});
         },
         .ios => {
-            mod.linkFramework("Foundation", .{});
+            module.linkFramework("Foundation", .{});
         },
         .linux => {
-            mod.linkSystemLibrary("rt", .{});
-            mod.linkSystemLibrary("dl", .{});
-            mod.linkSystemLibrary("pthread", .{});
+            module.linkSystemLibrary("rt", .{});
+            module.linkSystemLibrary("dl", .{});
+            module.linkSystemLibrary("pthread", .{});
         },
         else => {},
     }
 
-    ctx.visited.put(ctx.builder.allocator, juce_module.name, mod) catch @panic("OOM");
-
-    return mod;
+    return module;
 }

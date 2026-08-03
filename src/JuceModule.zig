@@ -1,22 +1,25 @@
 const std = @import("std");
-pub const JuceModule = @This();
+const JuceModule = @This();
+
+name: []const u8,
+deps: []const JuceModule,
+create: *const fn (ctx: BuildContext) *std.Build.Module,
 
 pub const BuildContext = struct {
     builder: *std.Build,
-    visited: *std.StringArrayHashMapUnmanaged(*std.Build.Module),
-    upstream: *std.Build.Dependency,
+    juce: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    juce_required_flags: RequiredFlags,
 };
 
-name: []const u8,
-createModule: *const fn (ctx: BuildContext) *std.Build.Module,
-
-pub fn init(
-    comptime name: []const u8,
-    comptime createModule: fn (ctx: BuildContext) *std.Build.Module,
-) JuceModule {
-    return .{
-        .name = name,
-        .createModule = createModule,
-    };
-}
+/// Required compiler flags resolved by `Setup` for sources that include JUCE headers.
+/// They contain the JUCE preprocessor definitions and language-specific compiler options.
+/// In your `create` callback, pass the matching field to `.flags`
+/// when calling `addCSourceFile` or `addCSourceFiles`.
+pub const RequiredFlags = struct {
+    /// Flags for C sources.
+    c: []const []const u8,
+    /// Flags for C++ and Objective-C++ sources.
+    cxx: []const []const u8,
+};

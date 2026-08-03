@@ -1,36 +1,24 @@
-pub const juce_module = JuceModule.init("juce_build_tools", createModule);
-
 const std = @import("std");
-const darwin_sdk = @import("../darwin.zig").sdk;
 const JuceModule = @import("../JuceModule.zig");
-const juce_gui_basics = @import("juce_gui_basics.zig").juce_module;
 
-fn createModule(ctx: JuceModule.BuildContext) *std.Build.Module {
-    if (ctx.visited.contains(juce_module.name)) {
-        return ctx.visited.get(juce_module.name).?;
-    }
+pub const juce_module: JuceModule = .{
+    .name = "juce_build_tools",
+    .deps = &.{@import("juce_gui_basics.zig").juce_module},
+    .create = create,
+};
 
+fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     const module = ctx.builder.createModule(.{
         .target = ctx.target,
+        .optimize = ctx.optimize,
         .link_libcpp = true,
-        .imports = &.{
-            .{
-                .name = juce_gui_basics.name,
-                .module = juce_gui_basics.createModule(ctx),
-            },
-        },
     });
-    module.addIncludePath(ctx.upstream.path("modules"));
-    module.addIncludePath(ctx.upstream.path("extras/Build/juce_build_tools"));
+    module.addIncludePath(ctx.juce.path("modules"));
+    module.addIncludePath(ctx.juce.path("extras/Build/juce_build_tools"));
     module.addCSourceFiles(.{
-        .root = ctx.upstream.path("extras/Build/juce_build_tools"),
+        .root = ctx.juce.path("extras/Build/juce_build_tools"),
         .files = &.{"juce_build_tools.cpp"},
+        .flags = ctx.juce_required_flags.cxx,
     });
-    if (ctx.target.result.os.tag.isDarwin()) {
-        darwin_sdk.addPaths(ctx.builder, module);
-    }
-
-    ctx.visited.put(ctx.builder.allocator, juce_module.name, module) catch @panic("OOM");
-
     return module;
 }
