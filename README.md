@@ -8,12 +8,6 @@ Build JUCE audio plugins using the Zig build system.
 - Support Linux, macOS, and Windows
 - Stay close to the JUCE CMake API
 
-## Non-goals
-
-- Provide full compatibility with the JUCE CMake API
-- Support every audio plugin format
-- Support mobile platforms
-
 ## Current limitations
 
 - Supported OS: macOS, Linux
@@ -141,9 +135,6 @@ zig build -l
 
 These fields correspond to the arguments used in JUCE’s `juce_add_<target>` functions.
 Refer to the [JUCE CMake API documentation](https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md) for detailed behaviour of each option.
-
-If you're using [ZLS](https://github.com/zigtools/zls), your editor can show available
-values and jump to definitions, making it easy to inspect each field.
 
 Note that some fields are not yet implemented.
 
