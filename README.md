@@ -19,7 +19,7 @@ Build JUCE audio plugins using the Zig build system.
 
 ## Dependencies
 
-- JUCE v8.0.12 (automatically fetched by the Zig build system)
+- JUCE v9.0.0 (automatically fetched by the Zig build system)
 
 ## Usage
 
