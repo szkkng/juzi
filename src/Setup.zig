@@ -33,208 +33,6 @@ pub const AddOptions = struct {
     config: ProjectConfig,
 };
 
-pub fn resolveJuceModules(
-    b: *std.Build,
-    requested_modules: []const JuceModule,
-) JuceModuleMap {
-    var modules: JuceModuleMap = .empty;
-
-    for (requested_modules) |juce_module| {
-        collectJuceModule(b, &modules, juce_module);
-    }
-
-    return modules;
-}
-
-pub fn addJuceModules(
-    root_module: *std.Build.Module,
-    modules: JuceModuleMap,
-    ctx: JuceModule.BuildContext,
-) void {
-    var iterator = modules.valueIterator();
-    while (iterator.next()) |module| {
-        const juce_module = module.*;
-        if (root_module.import_table.contains(juce_module.name)) continue;
-
-        root_module.addImport(juce_module.name, juce_module.create(ctx));
-    }
-}
-
-fn collectJuceModule(
-    b: *std.Build,
-    modules: *JuceModuleMap,
-    juce_module: JuceModule,
-) void {
-    if (modules.contains(juce_module.name)) return;
-
-    modules.put(b.allocator, juce_module.name, juce_module) catch @panic("OOM");
-    for (juce_module.deps) |dependency| {
-        collectJuceModule(b, modules, dependency);
-    }
-}
-
-pub const ConsoleApp = struct {
-    artifact: *std.Build.Step.Compile,
-    binary_data: ?*std.Build.Step.Compile = null,
-};
-
-pub fn addConsoleApp(
-    self: Setup,
-    options: AddOptions,
-) ConsoleApp {
-    const b = self.root_module.owner;
-    const target = self.root_module.resolved_target.?;
-    const optimize = self.root_module.optimize orelse .Debug;
-    const juce = self.juce;
-    var binary_data: ?*std.Build.Step.Compile = null;
-
-    var extra_flags = std.ArrayList([]const u8).empty;
-    extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    extra_flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
-
-    const juce_modules = resolveJuceModules(b, options.juce_modules);
-    const required_flags = resolveJuceRequiredFlags(
-        b,
-        target,
-        optimize,
-        juce_modules,
-        self.root_module.c_macros.items,
-        extra_flags.items,
-    );
-    addJuceModules(self.root_module, juce_modules, .{
-        .builder = b,
-        .juce = juce,
-        .target = target,
-        .optimize = optimize,
-        .juce_required_flags = required_flags,
-    });
-
-    const juceaide = Juceaide.create(b, juce);
-
-    const console_app = b.addExecutable(.{
-        .name = options.config.product_name,
-        .root_module = self.root_module,
-    });
-    linkOptionalLibraries(console_app.root_module, options.config);
-    addFlagsToLinkObjects(console_app.root_module, required_flags.cxx);
-
-    if (self.binary_data.items.len > 0) {
-        for (self.binary_data.items) |opts| {
-            const binary_data_lib = BinaryData.create(juceaide, target, optimize, opts);
-            for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
-                self.root_module.addIncludePath(include_dir.path);
-            }
-            binary_data = binary_data_lib;
-            console_app.root_module.linkLibrary(binary_data_lib);
-        }
-    }
-
-    if (target.result.os.tag.isDarwin()) {
-        darwin.addSdkPaths(b, console_app.root_module);
-    }
-
-    return .{
-        .artifact = console_app,
-        .binary_data = binary_data,
-    };
-}
-
-pub const GuiApp = struct {
-    artifact: *std.Build.Step.Compile,
-    install_step: *std.Build.Step,
-    binary_data: ?*std.Build.Step.Compile = null,
-};
-
-pub fn addGuiApp(
-    self: Setup,
-    options: AddOptions,
-) GuiApp {
-    const b = self.root_module.owner;
-    const target = self.root_module.resolved_target.?;
-    const optimize = self.root_module.optimize orelse .Debug;
-    const juce = self.juce;
-    var artifact: ?*std.Build.Step.Compile = null;
-    var install_step: ?*std.Build.Step = null;
-    var binary_data: ?*std.Build.Step.Compile = null;
-
-    var extra_flags = std.ArrayList([]const u8).empty;
-    extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    extra_flags.append(b.allocator, "-DJUCE_STANDALONE_APPLICATION=1") catch @panic("OOM");
-
-    const juce_modules = resolveJuceModules(b, options.juce_modules);
-    const required_flags = resolveJuceRequiredFlags(
-        b,
-        target,
-        optimize,
-        juce_modules,
-        self.root_module.c_macros.items,
-        extra_flags.items,
-    );
-    addJuceModules(self.root_module, juce_modules, .{
-        .builder = b,
-        .juce = juce,
-        .target = target,
-        .optimize = optimize,
-        .juce_required_flags = required_flags,
-    });
-
-    const juceaide = Juceaide.create(b, juce);
-
-    const product_name = options.config.product_name;
-    const gui_app = b.addExecutable(.{
-        .name = product_name,
-        .root_module = self.root_module,
-    });
-    linkOptionalLibraries(gui_app.root_module, options.config);
-    addFlagsToLinkObjects(gui_app.root_module, required_flags.cxx);
-
-    if (self.binary_data.items.len > 0) {
-        for (self.binary_data.items) |opts| {
-            const binary_data_lib = BinaryData.create(juceaide, target, optimize, opts);
-            for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
-                self.root_module.addIncludePath(include_dir.path);
-            }
-            binary_data = binary_data_lib;
-            gui_app.root_module.linkLibrary(binary_data_lib);
-        }
-    }
-
-    if (target.result.os.tag.isDarwin()) {
-        darwin.addSdkPaths(b, gui_app.root_module);
-    }
-
-    switch (target.result.os.tag) {
-        .macos => {
-            const install_gui_app = darwin.addInstallBundle(gui_app, .gui_app);
-
-            const install_plist = darwin.addInstallInfoPlist(juceaide, options.config, .gui_app);
-            install_gui_app.step.dependOn(&install_plist.step);
-
-            const install_pkginfo = darwin.addInstallPkgInfo(juceaide, product_name, .gui_app);
-            install_gui_app.step.dependOn(&install_pkginfo.step);
-
-            const app_bundle_step = darwin.addInstallNib(b, juce, product_name, .gui_app);
-            install_gui_app.step.dependOn(&app_bundle_step.step);
-
-            artifact = install_gui_app.artifact;
-            install_step = &install_gui_app.step;
-        },
-        .linux => {
-            const install_gui_app = b.addInstallArtifact(gui_app, .{});
-            install_step = &install_gui_app.step;
-        },
-        // .windows => {
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
-
-    return .{
-        .artifact = gui_app,
-        .install_step = install_step.?,
-        .binary_data = binary_data,
-    };
-}
-
 pub const Plugin = struct {
     artifacts: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step.Compile),
     install_steps: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step),
@@ -507,6 +305,46 @@ pub fn addPlugin(
     }
 
     return result;
+}
+
+pub fn resolveJuceModules(
+    b: *std.Build,
+    requested_modules: []const JuceModule,
+) JuceModuleMap {
+    var modules: JuceModuleMap = .empty;
+
+    for (requested_modules) |juce_module| {
+        collectJuceModule(b, &modules, juce_module);
+    }
+
+    return modules;
+}
+
+pub fn addJuceModules(
+    root_module: *std.Build.Module,
+    modules: JuceModuleMap,
+    ctx: JuceModule.BuildContext,
+) void {
+    var iterator = modules.valueIterator();
+    while (iterator.next()) |module| {
+        const juce_module = module.*;
+        if (root_module.import_table.contains(juce_module.name)) continue;
+
+        root_module.addImport(juce_module.name, juce_module.create(ctx));
+    }
+}
+
+fn collectJuceModule(
+    b: *std.Build,
+    modules: *JuceModuleMap,
+    juce_module: JuceModule,
+) void {
+    if (modules.contains(juce_module.name)) return;
+
+    modules.put(b.allocator, juce_module.name, juce_module) catch @panic("OOM");
+    for (juce_module.deps) |dependency| {
+        collectJuceModule(b, modules, dependency);
+    }
 }
 
 // Similar to `std.Build.Module.addCMacro`, but for defining
