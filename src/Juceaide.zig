@@ -1,4 +1,5 @@
 const std = @import("std");
+const darwin = @import("darwin.zig");
 const Juceaide = @This();
 const Setup = @import("Setup.zig");
 const juce_build_tools = @import("modules/juce_build_tools.zig").juce_module;
@@ -24,6 +25,11 @@ pub fn create(
         .root = juce_src.path("extras/Build/juceaide"),
         .files = &.{"Main.cpp"},
     });
+
+    if (target.result.os.tag.isDarwin()) {
+        darwin.sdk.addPaths(b, mod);
+    }
+
     const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
     const required_flags = Setup.resolveJuceRequiredFlags(
         b,
