@@ -1,7 +1,10 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    zig.url = "github:mitchellh/zig-overlay";
+    zig = {
+      url = "github:silversquirl/zig-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -29,8 +32,8 @@
             packages =
               with pkgs;
               [
-                zig.packages.${stdenv.hostPlatform.system}."0.16.0"
-                zls
+                zig.packages.${system}.default
+                zig.packages.${system}.default.zls
               ]
               # JUCE Dependencies on Linux
               # https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md#packages
