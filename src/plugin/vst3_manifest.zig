@@ -41,7 +41,7 @@ pub fn addInstallModuleInfo(
 
     if (is_darwin) {
         manifest_helper.root_module.linkFramework("Foundation", .{});
-        darwin.sdk.addPaths(b, manifest_helper.root_module);
+        darwin.addSdkPaths(b, manifest_helper.root_module);
     }
 
     return install_module_info;

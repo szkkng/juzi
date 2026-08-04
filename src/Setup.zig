@@ -130,7 +130,7 @@ pub fn addConsoleApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, console_app.root_module);
+        darwin.addSdkPaths(b, console_app.root_module);
     }
 
     return .{
@@ -200,20 +200,20 @@ pub fn addGuiApp(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, gui_app.root_module);
+        darwin.addSdkPaths(b, gui_app.root_module);
     }
 
     switch (target.result.os.tag) {
         .macos => {
-            const install_gui_app = darwin.bundle.addInstallBundle(gui_app, .gui_app);
+            const install_gui_app = darwin.addInstallBundle(gui_app, .gui_app);
 
-            const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .gui_app);
+            const install_plist = darwin.addInstallInfoPlist(juceaide, options.config, .gui_app);
             install_gui_app.step.dependOn(&install_plist.step);
 
-            const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, product_name, .gui_app);
+            const install_pkginfo = darwin.addInstallPkgInfo(juceaide, product_name, .gui_app);
             install_gui_app.step.dependOn(&install_pkginfo.step);
 
-            const app_bundle_step = darwin.bundle.addInstallNib(b, upstream, product_name, .gui_app);
+            const app_bundle_step = darwin.addInstallNib(b, upstream, product_name, .gui_app);
             install_gui_app.step.dependOn(&app_bundle_step.step);
 
             artifact = install_gui_app.artifact;
@@ -297,7 +297,7 @@ pub fn addPlugin(
     }
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, plugin_shared_lib.root_module);
+        darwin.addSdkPaths(b, plugin_shared_lib.root_module);
     }
 
     const config = options.config;
@@ -327,7 +327,7 @@ pub fn addPlugin(
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
-                    darwin.sdk.addPaths(b, vst3_module);
+                    darwin.addSdkPaths(b, vst3_module);
                 }
 
                 const vst3_step = b.step("vst3", "Build VST3");
@@ -345,16 +345,16 @@ pub fn addPlugin(
 
                 switch (target.result.os.tag) {
                     .macos => {
-                        const install_vst3 = darwin.bundle.addInstallBundle(vst3, .{ .plugin = .vst3 });
-                        const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
+                        const install_vst3 = darwin.addInstallBundle(vst3, .{ .plugin = .vst3 });
+                        const codesign_run = darwin.addAdhocCodesign(
                             b,
                             b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
                         );
-                        adhoc_sign_run.step.dependOn(&install_vst3.step);
-                        vst3_step.dependOn(&adhoc_sign_run.step);
+                        codesign_run.step.dependOn(&install_vst3.step);
+                        vst3_step.dependOn(&codesign_run.step);
 
-                        const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
-                        const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
+                        const install_pkginfo = darwin.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
                         vst3_step.dependOn(&install_plist.step);
                         vst3_step.dependOn(&install_pkginfo.step);
                     },
@@ -413,7 +413,7 @@ pub fn addPlugin(
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
-                    darwin.sdk.addPaths(b, au_module);
+                    darwin.addSdkPaths(b, au_module);
                 }
 
                 const au_step = b.step("au", "Build AU");
@@ -429,16 +429,16 @@ pub fn addPlugin(
                 });
                 au.root_module.linkLibrary(plugin_shared_lib);
 
-                const install_au = darwin.bundle.addInstallBundle(au, .{ .plugin = .au });
-                const adhoc_sign_run = darwin.codesign.addAdhocCodeSign(
+                const install_au = darwin.addInstallBundle(au, .{ .plugin = .au });
+                const codesign_run = darwin.addAdhocCodesign(
                     b,
                     b.getInstallPath(.prefix, b.fmt("{s}.component", .{au.name})),
                 );
-                adhoc_sign_run.step.dependOn(&install_au.step);
-                au_step.dependOn(&adhoc_sign_run.step);
+                codesign_run.step.dependOn(&install_au.step);
+                au_step.dependOn(&codesign_run.step);
 
-                const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, config, .{ .plugin = .au });
-                const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
+                const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .au });
+                const install_pkginfo = darwin.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
                 au_step.dependOn(&install_plist.step);
                 au_step.dependOn(&install_pkginfo.step);
 
@@ -464,7 +464,7 @@ pub fn addPlugin(
                     .flags = flags.items,
                 });
                 if (target.result.os.tag.isDarwin()) {
-                    darwin.sdk.addPaths(b, standalone_module);
+                    darwin.addSdkPaths(b, standalone_module);
                 }
 
                 const standalone = b.addExecutable(.{
@@ -477,10 +477,10 @@ pub fn addPlugin(
 
                 switch (target.result.os.tag) {
                     .macos => {
-                        const install_standalone = darwin.bundle.addInstallBundle(standalone, .{ .plugin = .standalone });
-                        const install_plist = darwin.bundle.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
-                        const install_pkginfo = darwin.bundle.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
-                        const install_nib = darwin.bundle.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
+                        const install_standalone = darwin.addInstallBundle(standalone, .{ .plugin = .standalone });
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
+                        const install_pkginfo = darwin.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
+                        const install_nib = darwin.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
 
                         standalone_step.dependOn(&install_standalone.step);
                         standalone.step.dependOn(&install_plist.step);

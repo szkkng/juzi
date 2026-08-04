@@ -27,7 +27,7 @@ pub fn create(
     });
 
     if (target.result.os.tag.isDarwin()) {
-        darwin.sdk.addPaths(b, mod);
+        darwin.addSdkPaths(b, mod);
     }
 
     const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
