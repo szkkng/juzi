@@ -34,7 +34,6 @@ pub fn create(
     const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
     const required_flags = Setup.resolveJuceRequiredFlags(
         b,
-        target,
         juce_modules,
         mod.c_macros.items,
         &.{

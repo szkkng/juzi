@@ -61,7 +61,6 @@ pub fn addPlugin(
     const juce_modules = resolveJuceModules(b, options.juce_modules);
     const required_flags = resolveJuceRequiredFlags(
         b,
-        target,
         juce_modules,
         self.root_module.c_macros.items,
         extra_flags.items,
@@ -385,45 +384,21 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
     }
 }
 
-pub fn getJuceCommonFlags(
-    b: *std.Build,
-    target: std.Build.ResolvedTarget,
-) []const []const u8 {
-    var flags = std.ArrayList([]const u8).empty;
-
-    switch (target.result.os.tag) {
-        .macos => {
-            flags.append(b.allocator, "-DJUCE_MAC=1") catch @panic("OOM");
-        },
-        .linux => {
-            flags.append(b.allocator, "-DJUCE_LINUX=1") catch @panic("OOM");
-        },
-        // .windows => {
-        //     flags.append(b.allocator, "-D_CONSOLE=1") catch @panic("OOM");
-        // },
-        else => @panic("Not implemented yet: only macOS is supported"),
-    }
-
-    flags.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
-    return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
-}
-
 pub fn resolveJuceRequiredFlags(
     b: *std.Build,
-    target: std.Build.ResolvedTarget,
     modules: JuceModuleMap,
     root_macros: []const []const u8,
     extra_flags: []const []const u8,
 ) JuceModule.RequiredFlags {
-    var common = std.ArrayList([]const u8).empty;
-    common.appendSlice(b.allocator, getJuceCommonFlags(b, target)) catch @panic("OOM");
+    var common: std.ArrayList([]const u8) = .empty;
     common.appendSlice(b.allocator, root_macros) catch @panic("OOM");
     common.appendSlice(b.allocator, extra_flags) catch @panic("OOM");
     common.appendSlice(b.allocator, getJuceModuleAvailableDefs(b, modules)) catch @panic("OOM");
+    common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
 
     const c_flags = common.toOwnedSlice(b.allocator) catch @panic("OOM");
 
-    var cxx = std.ArrayList([]const u8).empty;
+    var cxx: std.ArrayList([]const u8) = .empty;
     cxx.appendSlice(b.allocator, c_flags) catch @panic("OOM");
     cxx.append(b.allocator, "--std=c++20") catch @panic("OOM");
     cxx.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
