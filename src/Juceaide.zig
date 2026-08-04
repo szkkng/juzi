@@ -29,11 +29,12 @@ pub fn create(
         darwin.addSdkPaths(b, mod);
     }
 
+    Setup.addJuceStandardDefs(mod, optimize);
+
     const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
     const required_flags = Setup.resolveJuceRequiredFlags(
         b,
         target,
-        optimize,
         juce_modules,
         mod.c_macros.items,
         &.{

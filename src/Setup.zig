@@ -51,6 +51,7 @@ pub fn addPlugin(
         .artifacts = .empty,
         .install_steps = .empty,
     };
+    addJuceStandardDefs(self.root_module, optimize);
 
     var extra_flags = std.ArrayList([]const u8).empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
@@ -61,7 +62,6 @@ pub fn addPlugin(
     const required_flags = resolveJuceRequiredFlags(
         b,
         target,
-        optimize,
         juce_modules,
         self.root_module.c_macros.items,
         extra_flags.items,
@@ -388,7 +388,6 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
 pub fn getJuceCommonFlags(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
 ) []const []const u8 {
     var flags = std.ArrayList([]const u8).empty;
 
@@ -405,11 +404,6 @@ pub fn getJuceCommonFlags(
         else => @panic("Not implemented yet: only macOS is supported"),
     }
 
-    const standard_defs = getJuceStandardDefs(b, optimize);
-    for (standard_defs) |def| {
-        flags.append(b.allocator, def) catch @panic("OOM");
-    }
-
     flags.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
     return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
@@ -417,13 +411,12 @@ pub fn getJuceCommonFlags(
 pub fn resolveJuceRequiredFlags(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
     modules: JuceModuleMap,
     root_macros: []const []const u8,
     extra_flags: []const []const u8,
 ) JuceModule.RequiredFlags {
     var common = std.ArrayList([]const u8).empty;
-    common.appendSlice(b.allocator, getJuceCommonFlags(b, target, optimize)) catch @panic("OOM");
+    common.appendSlice(b.allocator, getJuceCommonFlags(b, target)) catch @panic("OOM");
     common.appendSlice(b.allocator, root_macros) catch @panic("OOM");
     common.appendSlice(b.allocator, extra_flags) catch @panic("OOM");
     common.appendSlice(b.allocator, getJuceModuleAvailableDefs(b, modules)) catch @panic("OOM");
@@ -453,23 +446,16 @@ pub fn resolveJuceRequiredFlags(
     };
 }
 
-fn getJuceStandardDefs(
-    b: *std.Build,
-    optimize: std.builtin.OptimizeMode,
-) []const []const u8 {
-    var flags: std.ArrayList([]const u8) = .empty;
-
-    flags.append(b.allocator, "-DJUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1") catch @panic("OOM");
+pub fn addJuceStandardDefs(mod: *std.Build.Module, optimize: std.builtin.OptimizeMode) void {
+    mod.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
 
     if (optimize == .Debug) {
-        flags.append(b.allocator, "-DDEBUG=1") catch @panic("OOM");
-        flags.append(b.allocator, "-D_DEBUG=1") catch @panic("OOM");
+        mod.addCMacro("DEBUG", "1");
+        mod.addCMacro("_DEBUG", "1");
     } else {
-        flags.append(b.allocator, "-DNDEBUG=1") catch @panic("OOM");
-        flags.append(b.allocator, "-D_NDEBUG=1") catch @panic("OOM");
+        mod.addCMacro("NDEBUG", "1");
+        mod.addCMacro("_NDEBUG", "1");
     }
-
-    return flags.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
 pub fn getJuceModuleAvailableDefs(
