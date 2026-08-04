@@ -130,14 +130,14 @@ pub fn addInstallPkgInfo(
 // yet verified to work correctly.
 pub fn addInstallNib(
     b: *std.Build,
-    upstream: *std.Build.Dependency,
+    juce: *std.Build.Dependency,
     product_name: []const u8,
     product_kind: ProductKind,
 ) *std.Build.Step.InstallFile {
     const wf = b.addWriteFiles();
     const nib_file_name = "RecentFilesMenuTemplate.nib";
     const nib_file_source = b.fmt("extras/Build/CMake/{s}", .{nib_file_name});
-    const nib_file_path = wf.addCopyFile(upstream.path(nib_file_source), nib_file_name);
+    const nib_file_path = wf.addCopyFile(juce.path(nib_file_source), nib_file_name);
     const install_nib_file = b.addInstallFileWithDir(
         nib_file_path,
         .prefix,

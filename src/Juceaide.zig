@@ -10,7 +10,7 @@ pub fn create(
     b: *std.Build,
     juzi_dep: *std.Build.Dependency,
 ) Juceaide {
-    const juce_src = juzi_dep.builder.dependency("upstream", .{});
+    const juce = juzi_dep.builder.dependency("juce", .{});
     const target = b.graph.host;
     const optimize = .Debug;
 
@@ -19,10 +19,10 @@ pub fn create(
         .optimize = optimize,
         .link_libcpp = true,
     });
-    mod.addIncludePath(juce_src.path("modules"));
-    mod.addIncludePath(juce_src.path("extras/Build"));
+    mod.addIncludePath(juce.path("modules"));
+    mod.addIncludePath(juce.path("extras/Build"));
     mod.addCSourceFiles(.{
-        .root = juce_src.path("extras/Build/juceaide"),
+        .root = juce.path("extras/Build/juceaide"),
         .files = &.{"Main.cpp"},
     });
 
@@ -44,7 +44,7 @@ pub fn create(
     );
     Setup.addJuceModules(mod, juce_modules, .{
         .builder = b,
-        .juce = juce_src,
+        .juce = juce,
         .target = target,
         .optimize = optimize,
         .juce_required_flags = required_flags,

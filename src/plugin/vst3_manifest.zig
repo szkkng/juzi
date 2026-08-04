@@ -10,7 +10,7 @@ const AddInstallModuleInfoOptions = struct {
 // Creates the install step for generating and installing the VST3 moduleinfo.json file.
 pub fn addInstallModuleInfo(
     b: *std.Build,
-    upstream: *std.Build.Dependency,
+    juce: *std.Build.Dependency,
     product_name: []const u8,
     options: AddInstallModuleInfoOptions,
 ) *std.Build.Step.InstallFile {
@@ -22,11 +22,11 @@ pub fn addInstallModuleInfo(
             .link_libcpp = true,
         }),
     });
-    manifest_helper.root_module.addIncludePath(upstream.path("modules"));
-    manifest_helper.root_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+    manifest_helper.root_module.addIncludePath(juce.path("modules"));
+    manifest_helper.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
     const is_darwin = options.target.result.os.tag.isDarwin();
     manifest_helper.root_module.addCSourceFiles(.{
-        .root = upstream.path("modules/juce_audio_plugin_client/VST3"),
+        .root = juce.path("modules/juce_audio_plugin_client/VST3"),
         .files = &.{"juce_VST3ManifestHelper.cpp"},
         .flags = options.flags,
     });

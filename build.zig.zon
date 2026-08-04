@@ -4,7 +4,7 @@
     .minimum_zig_version = "0.16.0",
     .fingerprint = 0xc65b2a4087017892,
     .dependencies = .{
-        .upstream = .{
+        .juce = .{
             .url = "git+https://github.com/juce-framework/JUCE?ref=9.0.0#f8f8864172464b9adf9eba6101e1f784838d1597",
             .hash = "N-V-__8AAMZnhQW3VJsb87mklF_LgmGCv2WKRd786cp3lJrH",
         },

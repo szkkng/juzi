@@ -17,8 +17,8 @@ juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
 
 pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
-    const upstream = juzi_dep.builder.dependency("upstream", .{});
-    root_module.addIncludePath(upstream.path("modules"));
+    const juce = juzi_dep.builder.dependency("juce", .{});
+    root_module.addIncludePath(juce.path("modules"));
 
     return Setup{
         .root_module = root_module,
@@ -85,7 +85,7 @@ pub fn addConsoleApp(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+    const juce = self.juzi_dep.builder.dependency("juce", .{});
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var extra_flags = std.ArrayList([]const u8).empty;
@@ -103,7 +103,7 @@ pub fn addConsoleApp(
     );
     addJuceModules(self.root_module, juce_modules, .{
         .builder = b,
-        .juce = upstream,
+        .juce = juce,
         .target = target,
         .optimize = optimize,
         .juce_required_flags = required_flags,
@@ -152,7 +152,7 @@ pub fn addGuiApp(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+    const juce = self.juzi_dep.builder.dependency("juce", .{});
     var artifact: ?*std.Build.Step.Compile = null;
     var install_step: ?*std.Build.Step = null;
     var binary_data: ?*std.Build.Step.Compile = null;
@@ -172,7 +172,7 @@ pub fn addGuiApp(
     );
     addJuceModules(self.root_module, juce_modules, .{
         .builder = b,
-        .juce = upstream,
+        .juce = juce,
         .target = target,
         .optimize = optimize,
         .juce_required_flags = required_flags,
@@ -213,7 +213,7 @@ pub fn addGuiApp(
             const install_pkginfo = darwin.addInstallPkgInfo(juceaide, product_name, .gui_app);
             install_gui_app.step.dependOn(&install_pkginfo.step);
 
-            const app_bundle_step = darwin.addInstallNib(b, upstream, product_name, .gui_app);
+            const app_bundle_step = darwin.addInstallNib(b, juce, product_name, .gui_app);
             install_gui_app.step.dependOn(&app_bundle_step.step);
 
             artifact = install_gui_app.artifact;
@@ -248,7 +248,7 @@ pub fn addPlugin(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const upstream = self.juzi_dep.builder.dependency("upstream", .{});
+    const juce = self.juzi_dep.builder.dependency("juce", .{});
     var result: Plugin = .{
         .artifacts = .empty,
         .install_steps = .empty,
@@ -270,7 +270,7 @@ pub fn addPlugin(
     );
     addJuceModules(self.root_module, juce_modules, .{
         .builder = b,
-        .juce = upstream,
+        .juce = juce,
         .target = target,
         .optimize = optimize,
         .juce_required_flags = required_flags,
@@ -313,13 +313,13 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                vst3_module.addIncludePath(upstream.path("modules"));
-                vst3_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types"));
-                vst3_module.addIncludePath(upstream.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+                vst3_module.addIncludePath(juce.path("modules"));
+                vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
+                vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
 
                 const is_darwin = target.result.os.tag.isDarwin();
                 vst3_module.addCSourceFiles(.{
-                    .root = upstream.path("modules"),
+                    .root = juce.path("modules"),
                     .files = &.{b.fmt(
                         "juce_audio_plugin_client/juce_audio_plugin_client_VST3.{s}",
                         .{if (is_darwin) "mm" else "cpp"},
@@ -375,7 +375,7 @@ pub fn addPlugin(
                 if (config.vst3_auto_manifest) {
                     const install_module_info = Vst3Manifest.addInstallModuleInfo(
                         b,
-                        upstream,
+                        juce,
                         vst3.name,
                         .{
                             .target = target,
@@ -402,10 +402,10 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                au_module.addIncludePath(upstream.path("modules"));
-                au_module.addIncludePath(upstream.path("modules/juce_audio_plugin_client/AU"));
+                au_module.addIncludePath(juce.path("modules"));
+                au_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
                 au_module.addCSourceFiles(.{
-                    .root = upstream.path("modules"),
+                    .root = juce.path("modules"),
                     .files = &.{
                         "juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm",
                         "juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm",
@@ -455,9 +455,9 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                standalone_module.addIncludePath(upstream.path("modules"));
+                standalone_module.addIncludePath(juce.path("modules"));
                 standalone_module.addCSourceFiles(.{
-                    .root = upstream.path("modules"),
+                    .root = juce.path("modules"),
                     .files = &.{
                         "juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp",
                     },
@@ -480,7 +480,7 @@ pub fn addPlugin(
                         const install_standalone = darwin.addInstallBundle(standalone, .{ .plugin = .standalone });
                         const install_plist = darwin.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
                         const install_pkginfo = darwin.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
-                        const install_nib = darwin.addInstallNib(b, upstream, config.product_name, .{ .plugin = .standalone });
+                        const install_nib = darwin.addInstallNib(b, juce, config.product_name, .{ .plugin = .standalone });
 
                         standalone_step.dependOn(&install_standalone.step);
                         standalone.step.dependOn(&install_plist.step);
