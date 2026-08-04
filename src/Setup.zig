@@ -109,7 +109,7 @@ pub fn addConsoleApp(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep, target);
+    const juceaide = Juceaide.create(b, self.juzi_dep);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
@@ -178,7 +178,7 @@ pub fn addGuiApp(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep, target);
+    const juceaide = Juceaide.create(b, self.juzi_dep);
 
     const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
@@ -276,7 +276,7 @@ pub fn addPlugin(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep, target);
+    const juceaide = Juceaide.create(b, self.juzi_dep);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",

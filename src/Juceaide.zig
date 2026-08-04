@@ -9,9 +9,9 @@ artifact: *std.Build.Step.Compile,
 pub fn create(
     b: *std.Build,
     juzi_dep: *std.Build.Dependency,
-    target: std.Build.ResolvedTarget,
 ) Juceaide {
     const juce_src = juzi_dep.builder.dependency("upstream", .{});
+    const target = b.graph.host;
     const optimize = .Debug;
 
     const mod = b.createModule(.{
