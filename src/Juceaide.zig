@@ -8,9 +8,8 @@ artifact: *std.Build.Step.Compile,
 
 pub fn create(
     b: *std.Build,
-    juzi_dep: *std.Build.Dependency,
+    juce: *std.Build.Dependency,
 ) Juceaide {
-    const juce = juzi_dep.builder.dependency("juce", .{});
     const target = b.graph.host;
     const optimize = .Debug;
 

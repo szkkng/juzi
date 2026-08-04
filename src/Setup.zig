@@ -11,7 +11,7 @@ pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
 pub const JuceModule = @import("JuceModule.zig");
 pub const JuceModuleMap = std.StringHashMapUnmanaged(JuceModule);
 
-juzi_dep: *std.Build.Dependency,
+juce: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
@@ -22,7 +22,7 @@ pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Set
 
     return Setup{
         .root_module = root_module,
-        .juzi_dep = juzi_dep,
+        .juce = juce,
         .juce_macros = .empty,
         .binary_data = .empty,
     };
@@ -85,7 +85,7 @@ pub fn addConsoleApp(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const juce = self.juzi_dep.builder.dependency("juce", .{});
+    const juce = self.juce;
     var binary_data: ?*std.Build.Step.Compile = null;
 
     var extra_flags = std.ArrayList([]const u8).empty;
@@ -109,7 +109,7 @@ pub fn addConsoleApp(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep);
+    const juceaide = Juceaide.create(b, juce);
 
     const console_app = b.addExecutable(.{
         .name = options.config.product_name,
@@ -152,7 +152,7 @@ pub fn addGuiApp(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const juce = self.juzi_dep.builder.dependency("juce", .{});
+    const juce = self.juce;
     var artifact: ?*std.Build.Step.Compile = null;
     var install_step: ?*std.Build.Step = null;
     var binary_data: ?*std.Build.Step.Compile = null;
@@ -178,7 +178,7 @@ pub fn addGuiApp(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep);
+    const juceaide = Juceaide.create(b, juce);
 
     const product_name = options.config.product_name;
     const gui_app = b.addExecutable(.{
@@ -248,7 +248,7 @@ pub fn addPlugin(
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
-    const juce = self.juzi_dep.builder.dependency("juce", .{});
+    const juce = self.juce;
     var result: Plugin = .{
         .artifacts = .empty,
         .install_steps = .empty,
@@ -276,7 +276,7 @@ pub fn addPlugin(
         .juce_required_flags = required_flags,
     });
 
-    const juceaide = Juceaide.create(b, self.juzi_dep);
+    const juceaide = Juceaide.create(b, juce);
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
