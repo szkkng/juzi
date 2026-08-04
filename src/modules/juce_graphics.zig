@@ -21,7 +21,14 @@ fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     });
     module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_graphics"),
-        .files = &.{"juce_graphics_Sheenbidi.c"},
+        .files = &.{
+            "juce_graphics_Sheenbidi.c",
+            "juce_graphics_libjpg_1.c",
+            "juce_graphics_libjpg_2.c",
+            "juce_graphics_libjpg_3.c",
+            "juce_graphics_libpng.c",
+            "juce_graphics_lunasvg.c",
+        },
         .flags = ctx.juce_required_flags.c,
     });
 

@@ -27,7 +27,7 @@ pub fn addInstallModuleInfo(
     const is_darwin = options.target.result.os.tag.isDarwin();
     manifest_helper.root_module.addCSourceFiles(.{
         .root = upstream.path("modules/juce_audio_plugin_client/VST3"),
-        .files = &.{b.fmt("juce_VST3ManifestHelper.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .files = &.{"juce_VST3ManifestHelper.cpp"},
         .flags = options.flags,
     });
 

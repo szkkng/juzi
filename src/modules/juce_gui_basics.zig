@@ -4,8 +4,8 @@ const JuceModule = @import("../JuceModule.zig");
 pub const juce_module: JuceModule = .{
     .name = "juce_gui_basics",
     .deps = &.{
-        @import("juce_data_structures.zig").juce_module,
         @import("juce_graphics.zig").juce_module,
+        @import("juce_data_structures.zig").juce_module,
     },
     .create = create,
 };
@@ -21,7 +21,13 @@ fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     const is_darwin = ctx.target.result.os.tag.isDarwin();
     module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_gui_basics"),
-        .files = &.{ctx.builder.fmt("juce_gui_basics.{s}", .{if (is_darwin) "mm" else "cpp"})},
+        .files = &.{
+            ctx.builder.fmt("juce_gui_basics.{s}", .{if (is_darwin) "mm" else "cpp"}),
+            "juce_gui_basics_2.cpp",
+            "juce_gui_basics_3.cpp",
+            "juce_gui_basics_4.cpp",
+            "juce_gui_basics_5.cpp",
+        },
         .flags = ctx.juce_required_flags.cxx,
     });
 

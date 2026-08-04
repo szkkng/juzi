@@ -21,6 +21,14 @@ fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
         .files = &.{ctx.builder.fmt("juce_audio_formats.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = ctx.juce_required_flags.cxx,
     });
+    module.addCSourceFiles(.{
+        .root = ctx.juce.path("modules/juce_audio_formats"),
+        .files = &.{
+            "juce_audio_formats_flac_1.c",
+            "juce_audio_formats_flac_2.c",
+        },
+        .flags = ctx.juce_required_flags.c,
+    });
     switch (ctx.target.result.os.tag) {
         .macos => {
             module.linkFramework("CoreAudio", .{});
