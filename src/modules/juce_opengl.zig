@@ -4,36 +4,21 @@ const JuceModule = @import("../JuceModule.zig");
 pub const juce_module: JuceModule = .{
     .name = "juce_opengl",
     .deps = &.{@import("juce_gui_extra.zig").juce_module},
-    .create = create,
+    .configure = configure,
 };
 
-fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
-    const module = ctx.builder.createModule(.{
-        .target = ctx.target,
-        .optimize = ctx.optimize,
-        .link_libcpp = true,
-    });
-    module.addIncludePath(ctx.juce.path("modules"));
-
+fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
     const is_darwin = ctx.target.result.os.tag.isDarwin();
-    module.addCSourceFiles(.{
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_opengl"),
         .files = &.{ctx.builder.fmt("juce_opengl.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = ctx.juce_required_flags.cxx,
     });
 
     switch (ctx.target.result.os.tag) {
-        .macos => {
-            module.linkFramework("OpenGL", .{});
-        },
-        .ios => {
-            module.linkFramework("OpenGLES", .{});
-        },
-        .linux => {
-            module.linkSystemLibrary("gl", .{});
-        },
+        .macos => root_module.linkFramework("OpenGL", .{}),
+        .ios => root_module.linkFramework("OpenGLES", .{}),
+        .linux => root_module.linkSystemLibrary("gl", .{}),
         else => {},
     }
-
-    return module;
 }

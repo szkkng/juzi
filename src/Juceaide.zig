@@ -36,20 +36,18 @@ pub fn create(
         b,
         juce_modules,
         .cxx17,
-        mod.c_macros.items,
         &.{
             "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
             "-DJUCE_STANDALONE_APPLICATION=1",
         },
     );
+    Setup.addFlagsToLinkObjects(mod, required_flags.cxx);
     Setup.addJuceModules(mod, juce_modules, .{
         .builder = b,
         .juce = juce,
         .target = target,
-        .optimize = optimize,
         .juce_required_flags = required_flags,
     });
-    Setup.addFlagsToLinkObjects(mod, required_flags.cxx);
 
     const juceaide = b.addExecutable(.{
         .name = "juceaide",

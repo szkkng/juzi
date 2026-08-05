@@ -4,22 +4,16 @@ const JuceModule = @import("../JuceModule.zig");
 pub const juce_module: JuceModule = .{
     .name = "juce_graphics",
     .deps = &.{@import("juce_events.zig").juce_module},
-    .create = create,
+    .configure = configure,
 };
 
-fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
-    const module = ctx.builder.createModule(.{
-        .target = ctx.target,
-        .optimize = ctx.optimize,
-        .link_libcpp = true,
-    });
-    module.addIncludePath(ctx.juce.path("modules"));
-    module.addCSourceFiles(.{
+fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_graphics"),
         .files = &.{"juce_graphics_Harfbuzz.cpp"},
         .flags = ctx.juce_required_flags.cxx,
     });
-    module.addCSourceFiles(.{
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_graphics"),
         .files = &.{
             "juce_graphics_Sheenbidi.c",
@@ -33,28 +27,26 @@ fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
     });
 
     const is_darwin = ctx.target.result.os.tag.isDarwin();
-    module.addCSourceFiles(.{
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_graphics"),
         .files = &.{ctx.builder.fmt("juce_graphics.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = ctx.juce_required_flags.cxx,
     });
     switch (ctx.target.result.os.tag) {
         .macos => {
-            module.linkFramework("Cocoa", .{});
-            module.linkFramework("QuartzCore", .{});
+            root_module.linkFramework("Cocoa", .{});
+            root_module.linkFramework("QuartzCore", .{});
         },
         .ios => {
-            module.linkFramework("CoreGraphics", .{});
-            module.linkFramework("CoreImage", .{});
-            module.linkFramework("CoreText", .{});
-            module.linkFramework("QuartzCore", .{});
+            root_module.linkFramework("CoreGraphics", .{});
+            root_module.linkFramework("CoreImage", .{});
+            root_module.linkFramework("CoreText", .{});
+            root_module.linkFramework("QuartzCore", .{});
         },
         .linux => {
-            module.linkSystemLibrary("freetype2", .{});
-            module.linkSystemLibrary("fontconfig", .{});
+            root_module.linkSystemLibrary("freetype2", .{});
+            root_module.linkSystemLibrary("fontconfig", .{});
         },
         else => {},
     }
-
-    return module;
 }

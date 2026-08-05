@@ -4,35 +4,19 @@ const JuceModule = @import("../JuceModule.zig");
 pub const juce_module: JuceModule = .{
     .name = "juce_gui_extra",
     .deps = &.{@import("juce_gui_basics.zig").juce_module},
-    .create = create,
+    .configure = configure,
 };
 
-fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
-    const module = ctx.builder.createModule(.{
-        .target = ctx.target,
-        .optimize = ctx.optimize,
-        .link_libcpp = true,
-    });
-    module.addIncludePath(ctx.juce.path("modules"));
-
+fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
     const is_darwin = ctx.target.result.os.tag.isDarwin();
-    module.addCSourceFiles(.{
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_gui_extra"),
         .files = &.{ctx.builder.fmt("juce_gui_extra.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = ctx.juce_required_flags.cxx,
     });
 
-    switch (ctx.target.result.os.tag) {
-        .macos => {
-            module.linkFramework("WebKit", .{});
-            module.linkFramework("UserNotifications", .{ .weak = true });
-        },
-        .ios => {
-            module.linkFramework("WebKit", .{});
-            module.linkFramework("UserNotifications", .{ .weak = true });
-        },
-        else => {},
+    if (is_darwin) {
+        root_module.linkFramework("WebKit", .{});
+        root_module.linkFramework("UserNotifications", .{ .weak = true });
     }
-
-    return module;
 }

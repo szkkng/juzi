@@ -7,40 +7,29 @@ pub const juce_module: JuceModule = .{
         @import("juce_audio_basics.zig").juce_module,
         @import("juce_events.zig").juce_module,
     },
-    .create = create,
+    .configure = configure,
 };
 
-fn create(ctx: JuceModule.BuildContext) *std.Build.Module {
-    const module = ctx.builder.createModule(.{
-        .target = ctx.target,
-        .optimize = ctx.optimize,
-        .link_libcpp = true,
-    });
-    module.addIncludePath(ctx.juce.path("modules"));
-
+fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
     const is_darwin = ctx.target.result.os.tag.isDarwin();
-    module.addCSourceFiles(.{
+    root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_audio_devices"),
         .files = &.{ctx.builder.fmt("juce_audio_devices.{s}", .{if (is_darwin) "mm" else "cpp"})},
         .flags = ctx.juce_required_flags.cxx,
     });
     switch (ctx.target.result.os.tag) {
         .macos => {
-            module.linkFramework("CoreAudio", .{});
-            module.linkFramework("CoreMIDI", .{});
-            module.linkFramework("AudioToolbox", .{});
+            root_module.linkFramework("CoreAudio", .{});
+            root_module.linkFramework("CoreMIDI", .{});
+            root_module.linkFramework("AudioToolbox", .{});
         },
         .ios => {
-            module.linkFramework("CoreAudio", .{});
-            module.linkFramework("CoreMIDI", .{});
-            module.linkFramework("AudioToolbox", .{});
-            module.linkFramework("AVFoundation", .{});
+            root_module.linkFramework("CoreAudio", .{});
+            root_module.linkFramework("CoreMIDI", .{});
+            root_module.linkFramework("AudioToolbox", .{});
+            root_module.linkFramework("AVFoundation", .{});
         },
-        .linux => {
-            module.linkSystemLibrary("alsa", .{});
-        },
+        .linux => root_module.linkSystemLibrary("alsa", .{}),
         else => {},
     }
-
-    return module;
 }

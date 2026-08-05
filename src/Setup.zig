@@ -70,6 +70,8 @@ pub fn addPlugin(
         .artifacts = .empty,
         .install_steps = .empty,
     };
+
+    self.root_module.link_libcpp = true;
     addJuceStandardDefs(self.root_module, optimize);
 
     var extra_flags = std.ArrayList([]const u8).empty;
@@ -82,14 +84,14 @@ pub fn addPlugin(
         b,
         juce_modules,
         self.cxx_standard,
-        self.root_module.c_macros.items,
         extra_flags.items,
     );
+    self.root_module.addIncludePath(juce.path("modules"));
+    addFlagsToLinkObjects(self.root_module, required_flags.cxx);
     addJuceModules(self.root_module, juce_modules, .{
         .builder = b,
         .juce = juce,
         .target = target,
-        .optimize = optimize,
         .juce_required_flags = required_flags,
     });
 
@@ -99,9 +101,7 @@ pub fn addPlugin(
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
-    self.root_module.addIncludePath(juce.path("modules"));
     linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
-    addFlagsToLinkObjects(plugin_shared_lib.root_module, required_flags.cxx);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
@@ -131,6 +131,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
+                addJuceStandardDefs(vst3_module, optimize);
                 vst3_module.addIncludePath(juce.path("modules"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
@@ -220,6 +221,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
+                addJuceStandardDefs(au_module, optimize);
                 au_module.addIncludePath(juce.path("modules"));
                 au_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
                 au_module.addCSourceFiles(.{
@@ -273,6 +275,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
+                addJuceStandardDefs(standalone_module, optimize);
                 standalone_module.addIncludePath(juce.path("modules"));
                 standalone_module.addCSourceFiles(.{
                     .root = juce.path("modules"),
@@ -345,12 +348,9 @@ pub fn addJuceModules(
     modules: JuceModuleMap,
     ctx: JuceModule.BuildContext,
 ) void {
-    var iterator = modules.valueIterator();
-    while (iterator.next()) |module| {
-        const juce_module = module.*;
-        if (root_module.import_table.contains(juce_module.name)) continue;
-
-        root_module.addImport(juce_module.name, juce_module.create(ctx));
+    var iter = modules.valueIterator();
+    while (iter.next()) |module| {
+        module.*.configure(root_module, ctx);
     }
 }
 
@@ -409,11 +409,9 @@ pub fn resolveJuceRequiredFlags(
     b: *std.Build,
     modules: JuceModuleMap,
     cxx_standard: CxxStandard,
-    root_macros: []const []const u8,
     extra_flags: []const []const u8,
 ) JuceModule.RequiredFlags {
     var common: std.ArrayList([]const u8) = .empty;
-    common.appendSlice(b.allocator, root_macros) catch @panic("OOM");
     common.appendSlice(b.allocator, extra_flags) catch @panic("OOM");
     common.appendSlice(b.allocator, getJuceModuleAvailableDefs(b, modules)) catch @panic("OOM");
     common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
