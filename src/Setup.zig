@@ -15,15 +15,34 @@ juce: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
+cxx_standard: CxxStandard,
 
-pub fn init(juzi_dep: *std.Build.Dependency, root_module: *std.Build.Module) Setup {
-    const juce = juzi_dep.builder.dependency("juce", .{});
-    root_module.addIncludePath(juce.path("modules"));
+pub const CxxStandard = enum {
+    cxx17,
+    cxx20,
+    cxx23,
 
+    pub fn flag(self: CxxStandard) []const u8 {
+        return switch (self) {
+            .cxx17 => "--std=c++17",
+            .cxx20 => "--std=c++20",
+            .cxx23 => "--std=c++23",
+        };
+    }
+};
+
+pub const InitOptions = struct {
+    juzi: *std.Build.Dependency,
+    root_module: *std.Build.Module,
+    cxx_standard: CxxStandard = .cxx17,
+};
+
+pub fn init(options: InitOptions) Setup {
     return Setup{
-        .root_module = root_module,
-        .juce = juce,
+        .root_module = options.root_module,
+        .juce = options.juzi.builder.dependency("juce", .{}),
         .juce_macros = .empty,
+        .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
     };
 }
@@ -62,6 +81,7 @@ pub fn addPlugin(
     const required_flags = resolveJuceRequiredFlags(
         b,
         juce_modules,
+        self.cxx_standard,
         self.root_module.c_macros.items,
         extra_flags.items,
     );
@@ -79,6 +99,7 @@ pub fn addPlugin(
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
+    self.root_module.addIncludePath(juce.path("modules"));
     linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
     addFlagsToLinkObjects(plugin_shared_lib.root_module, required_flags.cxx);
 
@@ -387,6 +408,7 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
 pub fn resolveJuceRequiredFlags(
     b: *std.Build,
     modules: JuceModuleMap,
+    cxx_standard: CxxStandard,
     root_macros: []const []const u8,
     extra_flags: []const []const u8,
 ) JuceModule.RequiredFlags {
@@ -400,8 +422,8 @@ pub fn resolveJuceRequiredFlags(
 
     var cxx: std.ArrayList([]const u8) = .empty;
     cxx.appendSlice(b.allocator, c_flags) catch @panic("OOM");
-    cxx.append(b.allocator, "--std=c++20") catch @panic("OOM");
     cxx.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
+    cxx.append(b.allocator, cxx_standard.flag()) catch @panic("OOM");
 
     // Zig enforces -Werror=date-time in release builds for reproducible builds,
     // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.

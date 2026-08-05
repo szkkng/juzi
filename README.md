@@ -61,16 +61,18 @@ pub fn build(b: *std.Build) void {
             "PluginProcessor.cpp",
         },
         .flags = &.{
-            "--std=c++20",
             "-Wall",
             "-Wextra",
             "-Werror",
         },
     });
 
-    // Initialize juzi setup using this module and the juzi dependency.
-    const juzi_dep = b.dependency("juzi", .{});
-    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    // Initialize juzi setup.
+    var juzi_setup = juzi.Setup.init(.{
+        .juzi = b.dependency("juzi", .{}),
+        .root_module = module,
+        .cxx_standard = .cxx20,
+    });
 
     // Configure JUCE-related preprocessor macros.
     juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");

@@ -23,15 +23,17 @@ pub fn build(b: *std.Build) void {
             "PluginProcessor.cpp",
         },
         .flags = &.{
-            "--std=c++20",
             "-Wall",
             "-Wextra",
             "-Werror",
         },
     });
 
-    const juzi_dep = b.dependency("juzi", .{});
-    var juzi_setup = juzi.Setup.init(juzi_dep, module);
+    var juzi_setup = juzi.Setup.init(.{
+        .juzi = b.dependency("juzi", .{}),
+        .root_module = module,
+        .cxx_standard = .cxx20,
+    });
     juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
     juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
     juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");

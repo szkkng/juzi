@@ -35,6 +35,7 @@ pub fn create(
     const required_flags = Setup.resolveJuceRequiredFlags(
         b,
         juce_modules,
+        .cxx17,
         mod.c_macros.items,
         &.{
             "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
