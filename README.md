@@ -78,13 +78,6 @@ pub fn build(b: *std.Build) void {
     plugin.addJuceMacro("JUCE_WEB_BROWSER", "0");
     plugin.addJuceMacro("JUCE_USE_CURL", "0");
 
-    // Configure embedded binary data here, similar to JUCE's add_binary_data.
-    // plugin.addBinaryData(.{
-    //     .namespace = "JuziBinary",
-    //     .header_name = "JuziBinary",
-    //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
-    // });
-
     // Finalize the plugin after all configuration is complete.
     const result = plugin.finalize();
 
@@ -119,11 +112,6 @@ zig build -l
 Zig doesn't currently support generating `compile_commands.json`.  
 A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
 See the example projects in this repo for how to use it with juzi.
-
-## Motivation
-
-- To better understand both the JUCE CMake build system and Zig's build system.
-- Just for fun.
 
 ## License
 
