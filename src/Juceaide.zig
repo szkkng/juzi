@@ -1,7 +1,7 @@
 const std = @import("std");
 const darwin = @import("darwin.zig");
 const Juceaide = @This();
-const Setup = @import("Setup.zig");
+const setup = @import("setup.zig");
 const juce_build_tools = @import("modules/juce_build_tools.zig").juce_module;
 
 artifact: *std.Build.Step.Compile,
@@ -29,10 +29,10 @@ pub fn create(
         darwin.addSdkPaths(b, mod);
     }
 
-    Setup.addJuceStandardDefs(mod, optimize);
+    setup.addStandardDefs(mod, optimize);
 
-    const juce_modules = Setup.resolveJuceModules(b, &.{juce_build_tools});
-    const required_flags = Setup.resolveJuceRequiredFlags(
+    const juce_modules = setup.resolveModules(b, &.{juce_build_tools});
+    const required_flags = setup.resolveRequiredFlags(
         b,
         juce_modules,
         .cxx17,
@@ -41,8 +41,8 @@ pub fn create(
             "-DJUCE_STANDALONE_APPLICATION=1",
         },
     );
-    Setup.addFlagsToLinkObjects(mod, required_flags.cxx);
-    Setup.addJuceModules(mod, juce_modules, .{
+    setup.addFlagsToLinkObjects(mod, required_flags.cxx);
+    setup.addModules(mod, juce_modules, .{
         .builder = b,
         .juce = juce,
         .target = target,

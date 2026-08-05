@@ -16,13 +16,15 @@ pub fn build(b: *std.Build) void {
         .formats = &.{ .vst3, .au, .standalone },
     });
 
-    var setup = juzi.Setup.init(b, .{
+    var plugin = juzi.Plugin.init(b, .{
         .juzi = b.dependency("juzi", .{}),
         .target = target,
         .optimize = optimize,
+        .config = config,
+        .juce_modules = &.{juzi.modules.juce_audio_utils},
         .cxx_standard = .cxx20,
     });
-    setup.root_module.addCSourceFiles(.{
+    plugin.root_module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
             "PluginEditor.cpp",
@@ -35,23 +37,20 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
-    setup.addJuceMacro("JUCE_USE_CURL", "0");
+    plugin.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    plugin.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    plugin.addJuceMacro("JUCE_USE_CURL", "0");
 
     // Configure embedded binary data here, similar to JUCE's add_binary_data.
-    // setup.addBinaryData(.{
+    // plugin.addBinaryData(.{
     //     .namespace = "JuziBinary",
     //     .header_name = "JuziBinary",
     //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
     // });
 
-    const plugin = setup.addPlugin(.{
-        .juce_modules = &.{juzi.modules.juce_audio_utils},
-        .config = config,
-    });
+    const result = plugin.finalize();
 
-    var steps_it = plugin.install_steps.valueIterator();
+    var steps_it = result.install_steps.valueIterator();
     while (steps_it.next()) |step| {
         b.getInstallStep().dependOn(step.*);
     }
@@ -59,7 +58,7 @@ pub fn build(b: *std.Build) void {
     // Create a step that generates compile_commands.json.
     // Running `zig build cdb` will write the file to the project root.
     var targets = std.ArrayList(*std.Build.Step.Compile).empty;
-    var artifacts_it = plugin.artifacts.valueIterator();
+    var artifacts_it = result.artifacts.valueIterator();
     while (artifacts_it.next()) |artifact| {
         targets.append(b.allocator, artifact.*) catch @panic("OOM");
     }
@@ -69,7 +68,7 @@ pub fn build(b: *std.Build) void {
     // If you configure binary data above, make the cdb step depend on the
     // generated BinaryData target. Otherwise, compile_commands.json
     // generation will fail.
-    // if (plugin.binary_data) |bd| {
+    // if (result.binary_data) |bd| {
     //     cdb_step.dependOn(&bd.step);
     // }
 }

@@ -1,45 +1,36 @@
 const std = @import("std");
-const Setup = @This();
+const Plugin = @This();
 const darwin = @import("darwin.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const Vst3Manifest = @import("plugin/vst3_manifest.zig");
 const PluginMacros = @import("plugin/macros.zig");
 const ProjectConfig = @import("ProjectConfig.zig");
+const setup = @import("setup.zig");
 
 pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
 pub const JuceModule = @import("JuceModule.zig");
-pub const JuceModuleMap = std.StringHashMapUnmanaged(JuceModule);
+pub const CxxStandard = setup.CxxStandard;
 
 juce: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
 cxx_standard: CxxStandard,
-
-pub const CxxStandard = enum {
-    cxx17,
-    cxx20,
-    cxx23,
-
-    pub fn flag(self: CxxStandard) []const u8 {
-        return switch (self) {
-            .cxx17 => "--std=c++17",
-            .cxx20 => "--std=c++20",
-            .cxx23 => "--std=c++23",
-        };
-    }
-};
+config: ProjectConfig,
+juce_modules: []const JuceModule,
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    config: ProjectConfig,
+    juce_modules: []const JuceModule,
     cxx_standard: CxxStandard = .cxx17,
 };
 
-pub fn init(b: *std.Build, options: InitOptions) Setup {
-    return Setup{
+pub fn init(b: *std.Build, options: InitOptions) Plugin {
+    return Plugin{
         .root_module = b.createModule(.{
             .target = options.target,
             .optimize = options.optimize,
@@ -48,51 +39,45 @@ pub fn init(b: *std.Build, options: InitOptions) Setup {
         .juce_macros = .empty,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
+        .config = options.config,
+        .juce_modules = options.juce_modules,
     };
 }
 
-pub const AddOptions = struct {
-    juce_modules: []const JuceModule,
-    config: ProjectConfig,
-};
-
-pub const Plugin = struct {
+pub const Result = struct {
     artifacts: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step.Compile),
     install_steps: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step),
     binary_data: ?*std.Build.Step.Compile = null,
 };
 
-pub fn addPlugin(
-    self: Setup,
-    options: AddOptions,
-) Plugin {
+pub fn finalize(self: *Plugin) Result {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize orelse .Debug;
     const juce = self.juce;
-    var result: Plugin = .{
+    var result: Result = .{
         .artifacts = .empty,
         .install_steps = .empty,
     };
 
     self.root_module.link_libcpp = true;
-    addJuceStandardDefs(self.root_module, optimize);
+    setup.addStandardDefs(self.root_module, optimize);
 
     var extra_flags = std.ArrayList([]const u8).empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    const plugin_macros = PluginMacros.getPluginMacros(b, options.config) catch @panic("OOM");
+    const plugin_macros = PluginMacros.getPluginMacros(b, self.config) catch @panic("OOM");
     extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
-    const juce_modules = resolveJuceModules(b, options.juce_modules);
-    const required_flags = resolveJuceRequiredFlags(
+    const juce_modules = setup.resolveModules(b, self.juce_modules);
+    const required_flags = setup.resolveRequiredFlags(
         b,
         juce_modules,
         self.cxx_standard,
         extra_flags.items,
     );
     self.root_module.addIncludePath(juce.path("modules"));
-    addFlagsToLinkObjects(self.root_module, required_flags.cxx);
-    addJuceModules(self.root_module, juce_modules, .{
+    setup.addFlagsToLinkObjects(self.root_module, required_flags.cxx);
+    setup.addModules(self.root_module, juce_modules, .{
         .builder = b,
         .juce = juce,
         .target = target,
@@ -105,7 +90,7 @@ pub fn addPlugin(
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
-    linkOptionalLibraries(plugin_shared_lib.root_module, options.config);
+    linkOptionalLibraries(plugin_shared_lib.root_module, self.config);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
@@ -122,7 +107,7 @@ pub fn addPlugin(
         darwin.addSdkPaths(b, plugin_shared_lib.root_module);
     }
 
-    const config = options.config;
+    const config = self.config;
 
     for (config.formats) |format| {
         switch (format) {
@@ -135,7 +120,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                addJuceStandardDefs(vst3_module, optimize);
+                setup.addStandardDefs(vst3_module, optimize);
                 vst3_module.addIncludePath(juce.path("modules"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
@@ -225,7 +210,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                addJuceStandardDefs(au_module, optimize);
+                setup.addStandardDefs(au_module, optimize);
                 au_module.addIncludePath(juce.path("modules"));
                 au_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
                 au_module.addCSourceFiles(.{
@@ -279,7 +264,7 @@ pub fn addPlugin(
                     .optimize = optimize,
                     .link_libcpp = true,
                 });
-                addJuceStandardDefs(standalone_module, optimize);
+                setup.addStandardDefs(standalone_module, optimize);
                 standalone_module.addIncludePath(juce.path("modules"));
                 standalone_module.addCSourceFiles(.{
                     .root = juce.path("modules"),
@@ -303,7 +288,7 @@ pub fn addPlugin(
                 switch (target.result.os.tag) {
                     .macos => {
                         const install_standalone = darwin.addInstallBundle(standalone, .{ .plugin = .standalone });
-                        const install_plist = darwin.addInstallInfoPlist(juceaide, options.config, .{ .plugin = .standalone });
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .standalone });
                         const install_pkginfo = darwin.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
                         const install_nib = darwin.addInstallNib(b, juce, config.product_name, .{ .plugin = .standalone });
 
@@ -334,52 +319,15 @@ pub fn addPlugin(
     return result;
 }
 
-pub fn resolveJuceModules(
-    b: *std.Build,
-    requested_modules: []const JuceModule,
-) JuceModuleMap {
-    var modules: JuceModuleMap = .empty;
-
-    for (requested_modules) |juce_module| {
-        collectJuceModule(b, &modules, juce_module);
-    }
-
-    return modules;
-}
-
-pub fn addJuceModules(
-    root_module: *std.Build.Module,
-    modules: JuceModuleMap,
-    ctx: JuceModule.BuildContext,
-) void {
-    var iter = modules.valueIterator();
-    while (iter.next()) |module| {
-        module.*.configure(root_module, ctx);
-    }
-}
-
-fn collectJuceModule(
-    b: *std.Build,
-    modules: *JuceModuleMap,
-    juce_module: JuceModule,
-) void {
-    if (modules.contains(juce_module.name)) return;
-
-    modules.put(b.allocator, juce_module.name, juce_module) catch @panic("OOM");
-    for (juce_module.deps) |dependency| {
-        collectJuceModule(b, modules, dependency);
-    }
-}
-
 // Similar to `std.Build.Module.addCMacro`, but for defining
 // JUCE_* macros that apply to all JUCE-related compilation,
 // not just the root module.
-pub fn addJuceMacro(self: *Setup, name: []const u8, value: []const u8) void {
+pub fn addJuceMacro(self: *Plugin, name: []const u8, value: []const u8) void {
     const b = self.root_module.owner;
     self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
 }
 
-pub fn addBinaryData(self: *Setup, bd: BinaryData.CreateOptions) void {
+pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
@@ -407,86 +355,4 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
             }
         },
     }
-}
-
-pub fn resolveJuceRequiredFlags(
-    b: *std.Build,
-    modules: JuceModuleMap,
-    cxx_standard: CxxStandard,
-    extra_flags: []const []const u8,
-) JuceModule.RequiredFlags {
-    var common: std.ArrayList([]const u8) = .empty;
-    common.appendSlice(b.allocator, extra_flags) catch @panic("OOM");
-    common.appendSlice(b.allocator, getJuceModuleAvailableDefs(b, modules)) catch @panic("OOM");
-    common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
-
-    const c_flags = common.toOwnedSlice(b.allocator) catch @panic("OOM");
-
-    var cxx: std.ArrayList([]const u8) = .empty;
-    cxx.appendSlice(b.allocator, c_flags) catch @panic("OOM");
-    cxx.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
-    cxx.append(b.allocator, cxx_standard.flag()) catch @panic("OOM");
-
-    // Zig enforces -Werror=date-time in release builds for reproducible builds,
-    // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.
-    // Disable this error as a workaround to allow JUCE to build.
-    // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
-    cxx.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
-
-    // JUCE's AU plugin client can use enum values outside the usual range,
-    // which trips UBSan's enum checks when loading debug AU plugins.
-    // Zig enables these UBSan checks by default, so disable them here.
-    // https://github.com/juce-framework/JUCE/blob/1b460fe0895635a2ab8ac5c00cb5575e33e5dc1e/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm#L944
-    cxx.append(b.allocator, "-fno-sanitize=enum") catch @panic("OOM");
-
-    return .{
-        .c = c_flags,
-        .cxx = cxx.toOwnedSlice(b.allocator) catch @panic("OOM"),
-    };
-}
-
-pub fn addJuceStandardDefs(mod: *std.Build.Module, optimize: std.builtin.OptimizeMode) void {
-    mod.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
-
-    if (optimize == .Debug) {
-        mod.addCMacro("DEBUG", "1");
-        mod.addCMacro("_DEBUG", "1");
-    } else {
-        mod.addCMacro("NDEBUG", "1");
-        mod.addCMacro("_NDEBUG", "1");
-    }
-}
-
-pub fn getJuceModuleAvailableDefs(
-    b: *std.Build,
-    modules: JuceModuleMap,
-) []const []const u8 {
-    var defs: std.ArrayList([]const u8) = .empty;
-    var names = modules.keyIterator();
-    while (names.next()) |name| {
-        defs.append(b.allocator, b.fmt("-DJUCE_MODULE_AVAILABLE_{s}=1", .{name.*})) catch @panic("OOM");
-    }
-    return defs.toOwnedSlice(b.allocator) catch @panic("OOM");
-}
-
-pub fn addFlagsToLinkObjects(m: *std.Build.Module, flags: []const []const u8) void {
-    const b = m.owner;
-    for (m.link_objects.items) |lobj| {
-        switch (lobj) {
-            .c_source_file => updateFlags(std.Build.Module.CSourceFile, b, lobj.c_source_file, flags),
-            .c_source_files => updateFlags(std.Build.Module.CSourceFiles, b, lobj.c_source_files, flags),
-            else => {},
-        }
-    }
-}
-
-fn updateFlags(T: type, b: *std.Build, c_source_file: *T, flags: []const []const u8) void {
-    if (T != std.Build.Module.CSourceFile and T != std.Build.Module.CSourceFiles) {
-        @compileError("Needs to be CSourceFile or CSourceFiles");
-    }
-    const combined = std.mem.concat(b.allocator, []const u8, &.{
-        c_source_file.flags,
-        flags,
-    }) catch @panic("OOM");
-    c_source_file.flags = combined;
 }

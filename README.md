@@ -52,16 +52,18 @@ pub fn build(b: *std.Build) void {
         .formats = &.{ .vst3, .au, .standalone },
     });
 
-    // Initialize juzi setup.
-    var juzi_setup = juzi.Setup.init(b, .{
+    // Initialize the plugin.
+    var plugin = juzi.Plugin.init(b, .{
         .juzi = b.dependency("juzi", .{}),
         .target = target,
         .optimize = optimize,
+        .config = config,
+        .juce_modules = &.{juzi.modules.juce_audio_utils},
         .cxx_standard = .cxx20,
     });
 
     // Add the plugin's C++ source files.
-    juzi_setup.root_module.addCSourceFiles(.{
+    plugin.root_module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
             "PluginEditor.cpp",
@@ -75,25 +77,22 @@ pub fn build(b: *std.Build) void {
     });
 
     // Configure JUCE-related preprocessor macros.
-    juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
-    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+    plugin.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    plugin.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    plugin.addJuceMacro("JUCE_USE_CURL", "0");
 
     // Configure embedded binary data here, similar to JUCE's add_binary_data.
-    // juzi_setup.addBinaryData(.{
+    // plugin.addBinaryData(.{
     //     .namespace = "JuziBinary",
     //     .header_name = "JuziBinary",
     //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
     // });
 
-    // After configuring juzi, add plugin targets for the selected formats.
-    const plugin = juzi_setup.addPlugin(.{
-        .juce_modules = &.{juzi.modules.juce_audio_utils},
-        .config = config,
-    });
+    // Finalize the plugin after all configuration is complete.
+    const result = plugin.finalize();
 
     // Add the collected install steps as dependencies of the top-level install step.
-    var steps_it = plugin.install_steps.valueIterator();
+    var steps_it = result.install_steps.valueIterator();
     while (steps_it.next()) |step| {
         b.getInstallStep().dependOn(step.*);
     }

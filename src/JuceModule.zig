@@ -12,7 +12,7 @@ pub const BuildContext = struct {
     juce_required_flags: RequiredFlags,
 };
 
-/// Required compiler flags resolved by `Setup` for sources that include JUCE headers.
+/// Required compiler flags resolved by `Plugin` for sources that include JUCE headers.
 /// They contain the JUCE preprocessor definitions and language-specific compiler options.
 /// In your `configure` callback, pass the matching field to `.flags`
 /// when calling `addCSourceFile` or `addCSourceFiles`.
