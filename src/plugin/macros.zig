@@ -1,9 +1,9 @@
 const std = @import("std");
-const ProjectConfig = @import("../ProjectConfig.zig");
+const Config = @import("Config.zig");
 const Vst2Category = @import("category.zig").Vst2Category;
 const Vst3Category = @import("category.zig").Vst3Category;
 
-pub fn getPluginMacros(b: *std.Build, config: ProjectConfig) ![]const []const u8 {
+pub fn getPluginMacros(b: *std.Build, config: Config) ![]const []const u8 {
     var flags = std.ArrayList([]const u8).empty;
 
     try flags.append(b.allocator, b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}));

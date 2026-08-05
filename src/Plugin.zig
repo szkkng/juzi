@@ -5,26 +5,26 @@ const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const Vst3Manifest = @import("plugin/vst3_manifest.zig");
 const PluginMacros = @import("plugin/macros.zig");
-const ProjectConfig = @import("ProjectConfig.zig");
 const setup = @import("setup.zig");
 
 pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
 pub const JuceModule = @import("JuceModule.zig");
 pub const CxxStandard = setup.CxxStandard;
+pub const Config = @import("plugin/Config.zig");
 
 juce: *std.Build.Dependency,
 root_module: *std.Build.Module,
 juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
 cxx_standard: CxxStandard,
-config: ProjectConfig,
+config: Config,
 juce_modules: []const JuceModule,
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    config: ProjectConfig.CreateOptions,
+    config: Config.Options,
     juce_modules: []const JuceModule,
     cxx_standard: CxxStandard = .cxx17,
 };
@@ -39,7 +39,7 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
         .juce_macros = .empty,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
-        .config = ProjectConfig.create(b, options.config),
+        .config = Config.init(b, options.config),
         .juce_modules = options.juce_modules,
     };
 }
@@ -332,7 +332,7 @@ pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
-fn linkOptionalLibraries(m: *std.Build.Module, config: ProjectConfig) void {
+fn linkOptionalLibraries(m: *std.Build.Module, config: Config) void {
     const os_tag = m.resolved_target.?.result.os.tag;
     switch (os_tag) {
         .linux => {

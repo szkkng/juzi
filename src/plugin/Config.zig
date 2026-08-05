@@ -1,9 +1,9 @@
 const std = @import("std");
-const ProjectConfig = @This();
-const PluginFormat = @import("plugin/format.zig").PluginFormat;
-pub const Vst2Category = @import("plugin/category.zig").Vst2Category;
-pub const Vst3Category = @import("plugin/category.zig").Vst3Category;
-pub const AudioUnitMainType = @import("plugin/category.zig").AudioUnitMainType;
+const Config = @This();
+const PluginFormat = @import("format.zig").PluginFormat;
+pub const Vst2Category = @import("category.zig").Vst2Category;
+pub const Vst3Category = @import("category.zig").Vst3Category;
+pub const AudioUnitMainType = @import("category.zig").AudioUnitMainType;
 
 // TODO: add more fields
 // https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_target
@@ -111,7 +111,7 @@ use_legacy_compatibility_plugin_code: bool,
 
 vst3_auto_manifest: bool,
 
-pub const CreateOptions = struct {
+pub const Options = struct {
     product_name: []const u8,
     version: []const u8,
     build_version: ?[]const u8 = null,
@@ -160,7 +160,7 @@ pub const CreateOptions = struct {
     use_legacy_compatibility_plugin_code: bool = false,
 };
 
-pub fn create(b: *std.Build, options: CreateOptions) ProjectConfig {
+pub fn init(b: *std.Build, options: Options) Config {
     const bundle_id = options.bundle_id orelse b.fmt("com.{s}.{s}", .{ options.company_name, options.product_name });
     if (std.mem.containsAtLeast(u8, bundle_id, 1, " ")) {
         @panic(b.fmt("Invalid bundle identifier '{s}': cannot contain spaces", .{bundle_id}));

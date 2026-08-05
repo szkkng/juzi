@@ -1,5 +1,5 @@
 const std = @import("std");
-const ProjectConfig = @import("ProjectConfig.zig");
+const Config = @import("plugin/Config.zig");
 const PluginFormat = @import("plugin/format.zig").PluginFormat;
 const Juceaide = @import("Juceaide.zig");
 
@@ -75,7 +75,7 @@ pub fn addInstallBundle(
 // Creates the install step for generating and installing the bundle's Info.plist.
 pub fn addInstallInfoPlist(
     juceaide: Juceaide,
-    config: ProjectConfig,
+    config: Config,
     kind: ProductKind,
 ) *std.Build.Step.InstallFile {
     const b = juceaide.artifact.root_module.owner;
@@ -150,7 +150,7 @@ pub fn addInstallNib(
     return install_nib_file;
 }
 
-pub fn generateInfoText(b: *std.Build, config: ProjectConfig, is_plugin: bool) !std.Build.LazyPath {
+pub fn generateInfoText(b: *std.Build, config: Config, is_plugin: bool) !std.Build.LazyPath {
     var buf: std.ArrayList(u8) = .empty;
 
     try appendRecord(&buf, b.allocator, "EXECUTABLE_NAME", config.product_name);
