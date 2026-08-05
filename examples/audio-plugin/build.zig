@@ -7,20 +7,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const config = juzi.ProjectConfig.create(b, .{
-        .product_name = "Audio Plugin Example",
-        .version = zon.version,
-        .bundle_id = "com.example.AudioPluginExample",
-        .plugin_manufacturer_code = "Juzi",
-        .plugin_code = "Juzi",
-        .formats = &.{ .vst3, .au, .standalone },
-    });
-
     var plugin = juzi.Plugin.init(b, .{
         .juzi = b.dependency("juzi", .{}),
         .target = target,
         .optimize = optimize,
-        .config = config,
+        .config = .{
+            .product_name = "Audio Plugin Example",
+            .version = zon.version,
+            .bundle_id = "com.example.AudioPluginExample",
+            .plugin_manufacturer_code = "Juzi",
+            .plugin_code = "Juzi",
+            .formats = &.{ .vst3, .au, .standalone },
+        },
         .juce_modules = &.{juzi.modules.juce_audio_utils},
         .cxx_standard = .cxx20,
     });

@@ -111,7 +111,7 @@ use_legacy_compatibility_plugin_code: bool,
 
 vst3_auto_manifest: bool,
 
-const CreateOptions = struct {
+pub const CreateOptions = struct {
     product_name: []const u8,
     version: []const u8,
     build_version: ?[]const u8 = null,

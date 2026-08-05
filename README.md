@@ -42,22 +42,19 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Create project configuration.
-    const config = juzi.ProjectConfig.create(b, .{
-        .product_name = "JuziPlugin",
-        .version = zon.version,
-        .bundle_id = "com.example.juzi",
-        .plugin_manufacturer_code = "Juzi",
-        .plugin_code = "Juzi",
-        .formats = &.{ .vst3, .au, .standalone },
-    });
-
     // Initialize the plugin.
     var plugin = juzi.Plugin.init(b, .{
         .juzi = b.dependency("juzi", .{}),
         .target = target,
         .optimize = optimize,
-        .config = config,
+        .config = .{
+            .product_name = "JuziPlugin",
+            .version = zon.version,
+            .bundle_id = "com.example.juzi",
+            .plugin_manufacturer_code = "Juzi",
+            .plugin_code = "Juzi",
+            .formats = &.{ .vst3, .au, .standalone },
+        },
         .juce_modules = &.{juzi.modules.juce_audio_utils},
         .cxx_standard = .cxx20,
     });
@@ -109,15 +106,6 @@ For audio plugin projects, you can build a specific format and install it:
 
 ```bash
 zig build vst3 -Doptimize=ReleaseFast -p ~/Library/Audio/Plug-Ins/VST3
-```
-
-The vst3 step becomes available when you specify the format in your ProjectConfig, for example:
-
-```zig
-const config = juzi.ProjectConfig.create(b, .{
-// ...
-    .formats = &.{ .vst3 },
-});
 ```
 
 You can list all available steps by running:

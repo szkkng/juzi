@@ -24,7 +24,7 @@ pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    config: ProjectConfig,
+    config: ProjectConfig.CreateOptions,
     juce_modules: []const JuceModule,
     cxx_standard: CxxStandard = .cxx17,
 };
@@ -39,7 +39,7 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
         .juce_macros = .empty,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
-        .config = options.config,
+        .config = ProjectConfig.create(b, options.config),
         .juce_modules = options.juce_modules,
     };
 }
