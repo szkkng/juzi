@@ -33,13 +33,17 @@ pub const CxxStandard = enum {
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
-    root_module: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
     cxx_standard: CxxStandard = .cxx17,
 };
 
-pub fn init(options: InitOptions) Setup {
+pub fn init(b: *std.Build, options: InitOptions) Setup {
     return Setup{
-        .root_module = options.root_module,
+        .root_module = b.createModule(.{
+            .target = options.target,
+            .optimize = options.optimize,
+        }),
         .juce = options.juzi.builder.dependency("juce", .{}),
         .juce_macros = .empty,
         .cxx_standard = options.cxx_standard,

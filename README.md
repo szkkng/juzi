@@ -52,9 +52,16 @@ pub fn build(b: *std.Build) void {
         .formats = &.{ .vst3, .au, .standalone },
     });
 
-    // Create the module for the plugin's C++ source files.
-    const module = b.createModule(.{ .target = target, .optimize = optimize });
-    module.addCSourceFiles(.{
+    // Initialize juzi setup.
+    var juzi_setup = juzi.Setup.init(b, .{
+        .juzi = b.dependency("juzi", .{}),
+        .target = target,
+        .optimize = optimize,
+        .cxx_standard = .cxx20,
+    });
+
+    // Add the plugin's C++ source files.
+    juzi_setup.root_module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
             "PluginEditor.cpp",
@@ -65,13 +72,6 @@ pub fn build(b: *std.Build) void {
             "-Wextra",
             "-Werror",
         },
-    });
-
-    // Initialize juzi setup.
-    var juzi_setup = juzi.Setup.init(.{
-        .juzi = b.dependency("juzi", .{}),
-        .root_module = module,
-        .cxx_standard = .cxx20,
     });
 
     // Configure JUCE-related preprocessor macros.

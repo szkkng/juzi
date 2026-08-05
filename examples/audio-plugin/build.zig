@@ -6,6 +6,7 @@ const zcc = @import("compile_commands");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
     const config = juzi.ProjectConfig.create(b, .{
         .product_name = "Audio Plugin Example",
         .version = zon.version,
@@ -15,8 +16,13 @@ pub fn build(b: *std.Build) void {
         .formats = &.{ .vst3, .au, .standalone },
     });
 
-    const module = b.createModule(.{ .target = target, .optimize = optimize });
-    module.addCSourceFiles(.{
+    var setup = juzi.Setup.init(b, .{
+        .juzi = b.dependency("juzi", .{}),
+        .target = target,
+        .optimize = optimize,
+        .cxx_standard = .cxx20,
+    });
+    setup.root_module.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{
             "PluginEditor.cpp",
@@ -29,23 +35,18 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    var juzi_setup = juzi.Setup.init(.{
-        .juzi = b.dependency("juzi", .{}),
-        .root_module = module,
-        .cxx_standard = .cxx20,
-    });
-    juzi_setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    juzi_setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
-    juzi_setup.addJuceMacro("JUCE_USE_CURL", "0");
+    setup.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    setup.addJuceMacro("JUCE_WEB_BROWSER", "0");
+    setup.addJuceMacro("JUCE_USE_CURL", "0");
 
     // Configure embedded binary data here, similar to JUCE's add_binary_data.
-    // juzi_setup.addBinaryData(.{
+    // setup.addBinaryData(.{
     //     .namespace = "JuziBinary",
     //     .header_name = "JuziBinary",
     //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
     // });
 
-    const plugin = juzi_setup.addPlugin(.{
+    const plugin = setup.addPlugin(.{
         .juce_modules = &.{juzi.modules.juce_audio_utils},
         .config = config,
     });
