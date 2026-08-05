@@ -1,6 +1,6 @@
 const std = @import("std");
 const Config = @This();
-const PluginFormat = @import("format.zig").PluginFormat;
+const Format = @import("format.zig").Format;
 pub const Vst2Category = @import("category.zig").Vst2Category;
 pub const Vst3Category = @import("category.zig").Vst3Category;
 pub const AudioUnitMainType = @import("category.zig").AudioUnitMainType;
@@ -66,7 +66,7 @@ needs_store_kit: bool,
 // app_sandbox_exception_iokit: []const []const u8,
 plist_to_merge: []const u8,
 
-formats: []const PluginFormat,
+formats: []const Format,
 plugin_name: []const u8,
 plugin_manufacturer_code: []const u8,
 
@@ -138,7 +138,7 @@ pub const Options = struct {
     needs_webview2: bool = false,
     needs_store_kit: bool = false,
     plist_to_merge: []const u8 = "",
-    formats: []const PluginFormat = &.{},
+    formats: []const Format = &.{},
     plugin_name: ?[]const u8 = null,
     plugin_manufacturer_code: []const u8 = "Manu",
     plugin_code: ?[]const u8 = null,

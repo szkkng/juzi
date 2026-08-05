@@ -7,7 +7,7 @@ const Vst3Manifest = @import("plugin/vst3_manifest.zig");
 const PluginMacros = @import("plugin/macros.zig");
 const setup = @import("setup.zig");
 
-pub const PluginFormat = @import("plugin/format.zig").PluginFormat;
+pub const Format = @import("plugin/format.zig").Format;
 pub const JuceModule = @import("JuceModule.zig");
 pub const CxxStandard = setup.CxxStandard;
 pub const Config = @import("plugin/Config.zig");
@@ -45,8 +45,8 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
 }
 
 pub const Result = struct {
-    artifacts: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step.Compile),
-    install_steps: std.AutoHashMapUnmanaged(PluginFormat, *std.Build.Step),
+    artifacts: std.AutoHashMapUnmanaged(Format, *std.Build.Step.Compile),
+    install_steps: std.AutoHashMapUnmanaged(Format, *std.Build.Step),
     binary_data: ?*std.Build.Step.Compile = null,
 };
 

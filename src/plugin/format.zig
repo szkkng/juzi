@@ -1,5 +1,5 @@
 // TODO: support more plugin formats
-pub const PluginFormat = enum {
+pub const Format = enum {
     vst3,
     standalone,
     // vst,
@@ -9,7 +9,7 @@ pub const PluginFormat = enum {
     // lv2,
     // unity,
 
-    pub fn internalIdentifier(self: PluginFormat) []const u8 {
+    pub fn internalIdentifier(self: Format) []const u8 {
         return switch (self) {
             .vst3 => "VST3",
             .standalone => "Standalone Plugin",

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Config = @import("plugin/Config.zig");
-const PluginFormat = @import("plugin/format.zig").PluginFormat;
+const Format = @import("plugin/format.zig").Format;
 const Juceaide = @import("Juceaide.zig");
 
 pub fn addSdkPaths(b: *std.Build, m: *std.Build.Module) void {
@@ -31,7 +31,7 @@ pub fn addAdhocCodesign(
 const ProductKind = union(enum) {
     console_app,
     gui_app,
-    plugin: PluginFormat,
+    plugin: Format,
 
     pub fn juceaideIdentifier(self: ProductKind) []const u8 {
         return switch (self) {
