@@ -2,14 +2,15 @@
 
 Build JUCE audio plugins using the Zig build system.
 
-## Current limitations
+## Status
 
-- Supported OS: macOS, Linux
-- Supported formats: VST3, AU, Standalone
+- Supported OS: macOS, Linux, Windows
+- Supported formats: VST3, AUv2, Standalone
 
 ## Requirements
 
 - Zig v0.16.0
+- Visual Studio Build Tools (Windows only)
 
 ## Dependencies
 
@@ -66,11 +67,6 @@ pub fn build(b: *std.Build) void {
             "PluginEditor.cpp",
             "PluginProcessor.cpp",
         },
-        .flags = &.{
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-        },
     });
 
     // Configure JUCE-related preprocessor macros.
@@ -92,14 +88,14 @@ pub fn build(b: *std.Build) void {
 To build:
 
 ```bash
-zig build -Doptimize=ReleaseFast
+# macOS, Linux
+zig build
+
+# Windows
+zig build -Dtarget=native-windows-msvc
 ```
 
-For audio plugin projects, you can build a specific format and install it:
-
-```bash
-zig build vst3 -Doptimize=ReleaseFast -p ~/Library/Audio/Plug-Ins/VST3
-```
+For release builds, add `-Doptimize=ReleaseFast`.
 
 You can list all available steps by running:
 
