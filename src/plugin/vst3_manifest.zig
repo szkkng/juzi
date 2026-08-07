@@ -1,5 +1,6 @@
 const std = @import("std");
 const darwin = @import("../darwin.zig");
+const setup = @import("../setup.zig");
 
 const AddInstallModuleInfoOptions = struct {
     target: std.Build.ResolvedTarget,
@@ -19,12 +20,12 @@ pub fn addInstallModuleInfo(
         .root_module = b.createModule(.{
             .target = options.target,
             .optimize = options.optimize,
-            .link_libcpp = true,
+            .link_libc = true,
+            .link_libcpp = options.target.result.os.tag != .windows,
         }),
     });
     manifest_helper.root_module.addIncludePath(juce.path("modules"));
     manifest_helper.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
-    const is_darwin = options.target.result.os.tag.isDarwin();
     manifest_helper.root_module.addCSourceFiles(.{
         .root = juce.path("modules/juce_audio_plugin_client/VST3"),
         .files = &.{"juce_VST3ManifestHelper.cpp"},
@@ -38,10 +39,17 @@ pub fn addInstallModuleInfo(
         .prefix,
         b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
     );
+    setup.addStandardDefs(manifest_helper.root_module, options.optimize);
 
-    if (is_darwin) {
-        manifest_helper.root_module.linkFramework("Foundation", .{});
-        darwin.addSdkPaths(b, manifest_helper.root_module);
+    switch (options.target.result.os.tag) {
+        .macos => {
+            manifest_helper.root_module.linkFramework("Foundation", .{});
+            darwin.addSdkPaths(b, manifest_helper.root_module);
+        },
+        .windows => {
+            manifest_helper.root_module.linkSystemLibrary("ole32", .{});
+        },
+        else => {},
     }
 
     return install_module_info;

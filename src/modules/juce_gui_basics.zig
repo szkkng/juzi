@@ -39,6 +39,11 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             root_module.linkFramework("UniformTypeIdentifiers", .{ .weak = true });
             root_module.linkFramework("UserNotifications", .{ .weak = true });
         },
+        .windows => {
+            root_module.linkSystemLibrary("comdlg32", .{});
+            root_module.linkSystemLibrary("oleaut32", .{});
+            root_module.linkSystemLibrary("gdi32", .{});
+        },
         else => {},
     }
 }

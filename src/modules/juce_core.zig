@@ -37,6 +37,10 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             root_module.linkSystemLibrary("dl", .{});
             root_module.linkSystemLibrary("pthread", .{});
         },
+        .windows => {
+            root_module.linkSystemLibrary("shell32", .{});
+            root_module.linkSystemLibrary("ole32", .{});
+        },
         else => {},
     }
 }

@@ -9,6 +9,7 @@ pub const BuildContext = struct {
     builder: *std.Build,
     juce: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
     juce_required_flags: RequiredFlags,
 };
 

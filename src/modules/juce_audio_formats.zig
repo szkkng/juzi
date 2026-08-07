@@ -33,6 +33,9 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             root_module.linkFramework("AudioToolbox", .{});
             root_module.linkFramework("QuartzCore", .{});
         },
+        .windows => {
+            root_module.addCMacro("fileno", "_fileno");
+        },
         else => {},
     }
 }

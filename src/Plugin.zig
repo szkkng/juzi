@@ -1,6 +1,7 @@
 const std = @import("std");
 const Plugin = @This();
 const darwin = @import("darwin.zig");
+const windows = @import("windows.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const Vst3Manifest = @import("plugin/vst3_manifest.zig");
@@ -30,10 +31,18 @@ pub const InitOptions = struct {
 };
 
 pub fn init(b: *std.Build, options: InitOptions) Plugin {
+    const isWindows = options.target.result.os.tag == .windows;
+
+    if (isWindows and options.target.result.abi != .msvc)
+        @panic("Windows builds require the MSVC ABI");
+
     return Plugin{
         .root_module = b.createModule(.{
             .target = options.target,
             .optimize = options.optimize,
+            .link_libc = true,
+            .link_libcpp = !isWindows,
+            .sanitize_c = if (isWindows) .off else null,
         }),
         .juce = options.juzi.builder.dependency("juce", .{}),
         .juce_macros = .empty,
@@ -60,7 +69,6 @@ pub fn finalize(self: *Plugin) Result {
         .install_steps = .empty,
     };
 
-    self.root_module.link_libcpp = true;
     setup.addStandardDefs(self.root_module, optimize);
 
     var extra_flags = std.ArrayList([]const u8).empty;
@@ -73,6 +81,7 @@ pub fn finalize(self: *Plugin) Result {
         b,
         juce_modules,
         self.cxx_standard,
+        target,
         extra_flags.items,
     );
     self.root_module.addIncludePath(juce.path("modules"));
@@ -81,6 +90,7 @@ pub fn finalize(self: *Plugin) Result {
         .builder = b,
         .juce = juce,
         .target = target,
+        .optimize = optimize,
         .juce_required_flags = required_flags,
     });
 
@@ -103,11 +113,8 @@ pub fn finalize(self: *Plugin) Result {
         }
     }
 
-    if (target.result.os.tag.isDarwin()) {
-        darwin.addSdkPaths(b, plugin_shared_lib.root_module);
-    }
-
     const config = self.config;
+    const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
 
     for (config.formats) |format| {
         switch (format) {
@@ -118,7 +125,6 @@ pub fn finalize(self: *Plugin) Result {
                 const vst3_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
-                    .link_libcpp = true,
                 });
                 setup.addStandardDefs(vst3_module, optimize);
                 vst3_module.addIncludePath(juce.path("modules"));
@@ -134,8 +140,11 @@ pub fn finalize(self: *Plugin) Result {
                     )},
                     .flags = flags.items,
                 });
-                if (target.result.os.tag.isDarwin()) {
-                    darwin.addSdkPaths(b, vst3_module);
+
+                switch (target.result.os.tag) {
+                    .macos => darwin.addSdkPaths(b, vst3_module),
+                    .windows => vst3_module.linkSystemLibrary("oldnames", .{}),
+                    else => {},
                 }
 
                 const vst3_step = b.step("vst3", "Build VST3");
@@ -148,6 +157,7 @@ pub fn finalize(self: *Plugin) Result {
                     .linkage = .dynamic,
                     .name = b.fmt("{s}", .{config.product_name}),
                     .root_module = vst3_module,
+                    .win32_manifest = windows.createManifest(b),
                 });
                 vst3.root_module.linkLibrary(plugin_shared_lib);
 
@@ -161,7 +171,7 @@ pub fn finalize(self: *Plugin) Result {
                         codesign_run.step.dependOn(&install_vst3.step);
                         vst3_step.dependOn(&codesign_run.step);
 
-                        const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .vst3 });
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .vst3 });
                         const install_pkginfo = darwin.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
                         vst3_step.dependOn(&install_plist.step);
                         vst3_step.dependOn(&install_pkginfo.step);
@@ -173,8 +183,26 @@ pub fn finalize(self: *Plugin) Result {
                         );
                         const install_vst3 = b.addInstallArtifact(vst3, .{
                             .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
-                            .dest_sub_path = b.fmt("{s}.so", .{vst3.name}),
+                            .dest_sub_path = b.fmt("{s}.vst3", .{vst3.name}),
                         });
+                        vst3_step.dependOn(&install_vst3.step);
+                    },
+                    .windows => {
+                        const arch_str = switch (target.result.cpu.arch) {
+                            .x86_64 => "x86_64",
+                            .x86 => "x86",
+                            .aarch64 => "arm64",
+                            else => |arch| @panic(b.fmt("unsupported architecture for VST3: {s}", .{@tagName(arch)})),
+                        };
+                        const bundle_subpath = b.fmt(
+                            "{s}.vst3/Contents/{s}-win",
+                            .{ config.product_name, arch_str },
+                        );
+                        const install_vst3 = b.addInstallArtifact(vst3, .{
+                            .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
+                            .dest_sub_path = b.fmt("{s}.vst3", .{vst3.name}),
+                        });
+                        windows.addResourcesRc(vst3.root_module, juceaide, info_text_file);
                         vst3_step.dependOn(&install_vst3.step);
                     },
                     else => @panic("Not implemented yet"),
@@ -208,7 +236,6 @@ pub fn finalize(self: *Plugin) Result {
                 const au_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
-                    .link_libcpp = true,
                 });
                 setup.addStandardDefs(au_module, optimize);
                 au_module.addIncludePath(juce.path("modules"));
@@ -246,7 +273,7 @@ pub fn finalize(self: *Plugin) Result {
                 codesign_run.step.dependOn(&install_au.step);
                 au_step.dependOn(&codesign_run.step);
 
-                const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .au });
+                const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .au });
                 const install_pkginfo = darwin.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
                 au_step.dependOn(&install_plist.step);
                 au_step.dependOn(&install_pkginfo.step);
@@ -262,7 +289,6 @@ pub fn finalize(self: *Plugin) Result {
                 const standalone_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
-                    .link_libcpp = true,
                 });
                 setup.addStandardDefs(standalone_module, optimize);
                 standalone_module.addIncludePath(juce.path("modules"));
@@ -280,6 +306,7 @@ pub fn finalize(self: *Plugin) Result {
                 const standalone = b.addExecutable(.{
                     .name = config.product_name,
                     .root_module = standalone_module,
+                    .win32_manifest = windows.createManifest(b),
                 });
                 standalone.root_module.linkLibrary(plugin_shared_lib);
 
@@ -288,7 +315,7 @@ pub fn finalize(self: *Plugin) Result {
                 switch (target.result.os.tag) {
                     .macos => {
                         const install_standalone = darwin.addInstallBundle(standalone, .{ .plugin = .standalone });
-                        const install_plist = darwin.addInstallInfoPlist(juceaide, config, .{ .plugin = .standalone });
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .standalone });
                         const install_pkginfo = darwin.addInstallPkgInfo(juceaide, config.product_name, .{ .plugin = .standalone });
                         const install_nib = darwin.addInstallNib(b, juce, config.product_name, .{ .plugin = .standalone });
 
@@ -298,6 +325,11 @@ pub fn finalize(self: *Plugin) Result {
                         standalone_step.dependOn(&install_nib.step);
                     },
                     .linux => {
+                        const install_standalone = b.addInstallArtifact(standalone, .{});
+                        standalone_step.dependOn(&install_standalone.step);
+                    },
+                    .windows => {
+                        windows.addResourcesRc(standalone.root_module, juceaide, info_text_file);
                         const install_standalone = b.addInstallArtifact(standalone, .{});
                         standalone_step.dependOn(&install_standalone.step);
                     },

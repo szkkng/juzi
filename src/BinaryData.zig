@@ -15,7 +15,7 @@ pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: st
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
-            .link_libcpp = true,
+            .link_libcpp = target.result.os.tag != .windows,
         }),
     });
 

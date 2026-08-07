@@ -10,13 +10,14 @@ pub fn create(
     b: *std.Build,
     juce: *std.Build.Dependency,
 ) Juceaide {
-    const target = b.graph.host;
+    const target = if (b.graph.host.result.os.tag == .windows) b.resolveTargetQuery(.{ .abi = .msvc }) else b.graph.host;
     const optimize = .Debug;
 
     const mod = b.createModule(.{
         .target = target,
         .optimize = optimize,
-        .link_libcpp = true,
+        .link_libc = true,
+        .link_libcpp = target.result.os.tag != .windows,
     });
     mod.addIncludePath(juce.path("modules"));
     mod.addIncludePath(juce.path("extras/Build"));
@@ -36,6 +37,7 @@ pub fn create(
         b,
         juce_modules,
         .cxx17,
+        target,
         &.{
             "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
             "-DJUCE_STANDALONE_APPLICATION=1",
@@ -46,6 +48,7 @@ pub fn create(
         .builder = b,
         .juce = juce,
         .target = target,
+        .optimize = optimize,
         .juce_required_flags = required_flags,
     });
 
