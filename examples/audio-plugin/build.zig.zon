@@ -2,7 +2,7 @@
     .name = .audio_plugin,
     .version = "0.0.1",
     .fingerprint = 0xeb61263264fe5e88,
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .juzi = .{ .path = "../.." },
         .compile_commands = .{
