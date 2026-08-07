@@ -42,6 +42,8 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
             .optimize = options.optimize,
             .link_libc = true,
             .link_libcpp = !isWindows,
+            // Temporary disable sanitizer on Windows due to the following:
+            // https://github.com/juce-framework/JUCE/issues/1697
             .sanitize_c = if (isWindows) .off else null,
         }),
         .juce = options.juzi.builder.dependency("juce", .{}),
