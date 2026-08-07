@@ -71,6 +71,10 @@ pub fn finalize(self: *Plugin) Result {
 
     setup.addStandardDefs(self.root_module, optimize);
 
+    if (target.result.os.tag.isDarwin()) {
+        darwin.addSdkPaths(b, self.root_module);
+    }
+
     var extra_flags = std.ArrayList([]const u8).empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     const plugin_macros = PluginMacros.getPluginMacros(b, self.config) catch @panic("OOM");
