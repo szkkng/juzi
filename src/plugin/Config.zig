@@ -40,6 +40,7 @@ send_apple_events_permission_text: []const u8,
 
 // icon_big: ?[]const u8,
 // icon_small: ?[]const u8,
+// icon_composer_bundle
 
 company_copyright: []const u8,
 company_name: []const u8,
@@ -85,6 +86,7 @@ editor_wants_keyboard_focus: bool,
 vst_num_midi_ins: u8,
 vst_num_midi_outs: u8,
 vst2_category: Vst2Category,
+// lv2_plugin_class
 vst3_categories: []const Vst3Category,
 
 au_main_type: AudioUnitMainType,
