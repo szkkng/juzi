@@ -238,7 +238,7 @@ pub fn init(b: *std.Build, options: Options) Config {
 }
 
 fn makeCIdentifier(allocator: std.mem.Allocator, input: []const u8) []const u8 {
-    var result = std.ArrayList(u8).empty;
+    var result: std.ArrayList(u8) = .empty;
 
     if (input.len == 0) {
         return result.toOwnedSlice(allocator) catch @panic("OOM");

@@ -21,7 +21,7 @@ pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: st
 
     const input_list_file = addInputFileList(b, options.files);
 
-    var binary_data_files = std.ArrayList([]const u8).empty;
+    var binary_data_files: std.ArrayList([]const u8) = .empty;
     for (options.files, 0..) |_, i| {
         binary_data_files.append(
             b.allocator,

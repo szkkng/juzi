@@ -55,7 +55,7 @@ pub fn build(b: *std.Build) void {
 
     // Create a step that generates compile_commands.json.
     // Running `zig build cdb` will write the file to the project root.
-    var targets = std.ArrayList(*std.Build.Step.Compile).empty;
+    var targets: std.ArrayList(*std.Build.Step.Compile) = .empty;
     var artifacts_it = result.artifacts.valueIterator();
     while (artifacts_it.next()) |artifact| {
         targets.append(b.allocator, artifact.*) catch @panic("OOM");

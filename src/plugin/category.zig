@@ -68,7 +68,7 @@ pub const Vst3Category = enum {
             return if (is_synth) &.{ .Instrument, .Synth } else &.{.Fx};
         }
 
-        var categArray = std.ArrayList(Vst3Category).empty;
+        var categArray: std.ArrayList(Vst3Category) = .empty;
 
         for (existing_categories) |category| {
             try categArray.append(allocator, category);
@@ -109,7 +109,7 @@ pub const Vst3Category = enum {
     // Converts the category list into a `|`-separated VST3 category string.
     // e.g. `.{ .Fx, .Reverb }` → "Fx|Reverb"
     pub fn join(allocator: std.mem.Allocator, categories: []const Vst3Category) ![]const u8 {
-        var categoryStrings = std.ArrayList([]const u8).empty;
+        var categoryStrings: std.ArrayList([]const u8) = .empty;
         defer categoryStrings.deinit(allocator);
         for (categories) |category| {
             try categoryStrings.append(allocator, category.internalIdentifier());

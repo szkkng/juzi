@@ -77,7 +77,7 @@ pub fn finalize(self: *Plugin) Result {
     setup.addStandardDefs(self.root_module, optimize);
     setup.addPluginDefinitions(self.root_module, self.config.formats);
 
-    var extra_flags = std.ArrayList([]const u8).empty;
+    var extra_flags: std.ArrayList([]const u8) = .empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     const plugin_macros = PluginMacros.getPluginMacros(b, self.config) catch @panic("OOM");
     extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");

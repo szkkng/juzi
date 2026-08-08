@@ -4,7 +4,7 @@ const Vst2Category = @import("category.zig").Vst2Category;
 const Vst3Category = @import("category.zig").Vst3Category;
 
 pub fn getPluginMacros(b: *std.Build, config: Config) ![]const []const u8 {
-    var flags = std.ArrayList([]const u8).empty;
+    var flags: std.ArrayList([]const u8) = .empty;
 
     try flags.append(b.allocator, b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}));
     try flags.append(b.allocator, b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)}));
