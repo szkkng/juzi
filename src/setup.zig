@@ -1,6 +1,7 @@
 const std = @import("std");
 const JuceModule = @import("JuceModule.zig");
 const Config = @import("plugin/Config.zig");
+const Format = @import("plugin/format.zig").Format;
 
 pub const ModuleMap = std.StringHashMapUnmanaged(JuceModule);
 
@@ -100,6 +101,20 @@ pub fn resolveRequiredFlags(
 pub fn addStandardDefs(module: *std.Build.Module, optimize: std.builtin.OptimizeMode) void {
     module.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
     module.addCMacro(if (optimize == .Debug) "DEBUG" else "NDEBUG", "1");
+}
+
+/// Defines a `JucePlugin_Build_<FORMAT>` macro for each plugin format,
+/// setting it to `1` when active and `0` otherwise.
+pub fn addPluginDefinitions(module: *std.Build.Module, active_formats: []const Format) void {
+    inline for (@typeInfo(Format).@"enum".fields) |field| {
+        const format: Format = @enumFromInt(field.value);
+        const is_active = if (std.mem.containsAtLeast(Format, active_formats, 1, &.{format})) "1" else "0";
+        switch (format) {
+            .vst3 => module.addCMacro("JucePlugin_Build_VST3", is_active),
+            .au => module.addCMacro("JucePlugin_Build_AU", is_active),
+            .standalone => module.addCMacro("JucePlugin_Build_Standalone", is_active),
+        }
+    }
 }
 
 fn getModuleAvailableDefs(

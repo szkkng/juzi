@@ -70,12 +70,12 @@ pub fn finalize(self: *Plugin) Result {
         .artifacts = .empty,
         .install_steps = .empty,
     };
-
-    setup.addStandardDefs(self.root_module, optimize);
-
     if (target.result.os.tag.isDarwin()) {
         darwin.addSdkPaths(b, self.root_module);
     }
+
+    setup.addStandardDefs(self.root_module, optimize);
+    setup.addPluginDefinitions(self.root_module, self.config.formats);
 
     var extra_flags = std.ArrayList([]const u8).empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
@@ -125,14 +125,15 @@ pub fn finalize(self: *Plugin) Result {
     for (config.formats) |format| {
         switch (format) {
             .vst3 => {
-                var flags = std.ArrayList([]const u8).empty;
+                var flags: std.ArrayList([]const u8) = .empty;
                 flags.appendSlice(b.allocator, required_flags.cxx) catch @panic("OOM");
-                flags.append(b.allocator, "-DJucePlugin_Build_VST3=1") catch @panic("OOM");
+
                 const vst3_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
                 });
                 setup.addStandardDefs(vst3_module, optimize);
+                setup.addPluginDefinitions(vst3_module, &.{.vst3});
                 vst3_module.addIncludePath(juce.path("modules"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
                 vst3_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
@@ -236,14 +237,15 @@ pub fn finalize(self: *Plugin) Result {
                     continue;
                 }
 
-                var flags = std.ArrayList([]const u8).empty;
+                var flags: std.ArrayList([]const u8) = .empty;
                 flags.appendSlice(b.allocator, required_flags.cxx) catch @panic("OOM");
-                flags.append(b.allocator, "-DJucePlugin_Build_AU=1") catch @panic("OOM");
+
                 const au_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
                 });
                 setup.addStandardDefs(au_module, optimize);
+                setup.addPluginDefinitions(au_module, &.{.au});
                 au_module.addIncludePath(juce.path("modules"));
                 au_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
                 au_module.addCSourceFiles(.{
@@ -254,6 +256,7 @@ pub fn finalize(self: *Plugin) Result {
                     },
                     .flags = flags.items,
                 });
+
                 if (target.result.os.tag.isDarwin()) {
                     darwin.addSdkPaths(b, au_module);
                 }
@@ -288,15 +291,15 @@ pub fn finalize(self: *Plugin) Result {
                 result.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");
             },
             .standalone => {
-                var flags = std.ArrayList([]const u8).empty;
+                var flags: std.ArrayList([]const u8) = .empty;
                 flags.appendSlice(b.allocator, required_flags.cxx) catch @panic("OOM");
-                flags.append(b.allocator, "-DJucePlugin_Build_Standalone=1") catch @panic("OOM");
 
                 const standalone_module = b.createModule(.{
                     .target = target,
                     .optimize = optimize,
                 });
                 setup.addStandardDefs(standalone_module, optimize);
+                setup.addPluginDefinitions(standalone_module, &.{.standalone});
                 standalone_module.addIncludePath(juce.path("modules"));
                 standalone_module.addCSourceFiles(.{
                     .root = juce.path("modules"),
@@ -305,6 +308,7 @@ pub fn finalize(self: *Plugin) Result {
                     },
                     .flags = flags.items,
                 });
+
                 if (target.result.os.tag.isDarwin()) {
                     darwin.addSdkPaths(b, standalone_module);
                 }
