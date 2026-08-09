@@ -4,8 +4,8 @@ const darwin = @import("darwin.zig");
 const windows = @import("windows.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
-const Vst3Manifest = @import("plugin/vst3_manifest.zig");
-const PluginMacros = @import("plugin/macros.zig");
+const vst3_manifest = @import("plugin/vst3_manifest.zig");
+const getPluginMacros = @import("plugin/macros.zig").getPluginMacros;
 const setup = @import("setup.zig");
 
 pub const Format = @import("plugin/format.zig").Format;
@@ -64,7 +64,7 @@ pub const Result = struct {
 pub fn finalize(self: *Plugin) Result {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
-    const optimize = self.root_module.optimize orelse .Debug;
+    const optimize = self.root_module.optimize.?;
     const juce = self.juce;
     var result: Result = .{
         .artifacts = .empty,
@@ -79,7 +79,7 @@ pub fn finalize(self: *Plugin) Result {
 
     var extra_flags: std.ArrayList([]const u8) = .empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    const plugin_macros = PluginMacros.getPluginMacros(b, self.config) catch @panic("OOM");
+    const plugin_macros = getPluginMacros(b, self.config) catch @panic("OOM");
     extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
     const juce_modules = setup.resolveModules(b, self.juce_modules);
@@ -200,7 +200,7 @@ pub fn finalize(self: *Plugin) Result {
                 }
 
                 if (config.vst3_auto_manifest) {
-                    const install_module_info = Vst3Manifest.addInstallModuleInfo(
+                    const install_module_info = vst3_manifest.addInstallModuleInfo(
                         b,
                         juce,
                         vst3.name,
