@@ -41,10 +41,10 @@ const ProductKind = union(enum) {
             .plugin => self.plugin.internalIdentifier(),
         };
     }
-    pub fn bundleTypeIdentifier(self: ProductKind) []const u8 {
+    pub fn bundleExtension(self: ProductKind) []const u8 {
         return switch (self) {
             .console_app, .gui_app => "app",
-            .plugin => |fmt| switch (fmt) {
+            .plugin => |f| switch (f) {
                 .vst3 => "vst3",
                 .standalone => "app",
                 .au => "component",
@@ -65,7 +65,7 @@ pub fn addInstallBundle(
     kind: ProductKind,
 ) *std.Build.Step.InstallArtifact {
     const b = artifact.step.owner;
-    const bundle_subpath = b.fmt("{s}.{s}/Contents/MacOS", .{ artifact.name, kind.bundleTypeIdentifier() });
+    const bundle_subpath = b.fmt("{s}.{s}/Contents/MacOS", .{ artifact.name, kind.bundleExtension() });
     const install_bundle = b.addInstallArtifact(artifact, .{
         .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
         .dest_sub_path = artifact.name,
@@ -93,7 +93,7 @@ pub fn addInstallInfoPlist(
         .prefix,
         b.fmt(
             "{s}.{s}/Contents/Info.plist",
-            .{ config.product_name, kind.bundleTypeIdentifier() },
+            .{ config.product_name, kind.bundleExtension() },
         ),
     );
 
@@ -118,7 +118,7 @@ pub fn addInstallPkgInfo(
         .prefix,
         b.fmt(
             "{s}.{s}/Contents/PkgInfo",
-            .{ product_name, kind.bundleTypeIdentifier() },
+            .{ product_name, kind.bundleExtension() },
         ),
     );
 
@@ -143,7 +143,7 @@ pub fn addInstallNib(
         .prefix,
         b.fmt("{s}.{s}/Contents/Resources/{s}", .{
             product_name,
-            product_kind.bundleTypeIdentifier(),
+            product_kind.bundleExtension(),
             nib_file_name,
         }),
     );
