@@ -42,7 +42,9 @@ pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: st
     binary_data_cmd.addFileArg(input_list_file);
     // Workaround: Suppress the assertion failure caused by passing the
     // input-list file path as a relative path instead of an absolute path.
-    binary_data_cmd.expectStdErrMatch("JUCE Assertion failure in juce_File.cpp");
+    if (target.result.os.tag.isDarwin()) {
+        binary_data_cmd.expectStdErrMatch("JUCE Assertion failure in juce_File.cpp");
+    }
 
     binary_data_lib.root_module.addCSourceFiles(.{
         .root = output_dir,
