@@ -40,6 +40,7 @@ pub fn create(
         target,
         &.{
             "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
+            "-DJUCE_USE_CURL=0",
             "-DJUCE_STANDALONE_APPLICATION=1",
         },
     );
