@@ -89,7 +89,7 @@ pub fn resolveRequiredFlags(
 
     if (target.result.os.tag == .windows) {
         // Suppress `error: argument unused during compilation: '-nostdinc++'`
-        cxx.append(b.allocator, "-Wno-error=unused-command-line-argument") catch @panic("OOM");
+        cxx.append(b.allocator, "-Wno-unused-command-line-argument") catch @panic("OOM");
     }
 
     return .{
