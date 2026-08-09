@@ -150,21 +150,34 @@ pub fn finalize(self: *Plugin) Result {
                     .flags = required_flags.cxx,
                 });
 
+                const install_module_info = vst3_manifest.addInstallModuleInfo(
+                    b,
+                    juce,
+                    vst3.name,
+                    .{
+                        .target = target,
+                        .optimize = optimize,
+                        .flags = required_flags.cxx,
+                    },
+                );
+
                 switch (target.result.os.tag) {
                     .macos => {
                         darwin.addSdkPaths(b, vst3.root_module);
                         const install_vst3 = darwin.addInstallBundle(vst3, .{ .plugin = .vst3 });
-                        const codesign_run = darwin.addAdhocCodesign(
+                        const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .vst3 });
+                        const install_pkginfo = darwin.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
+                        const adhoc_sign_run = darwin.addAdhocSign(
                             b,
                             b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
                         );
-                        codesign_run.step.dependOn(&install_vst3.step);
-                        vst3_step.dependOn(&codesign_run.step);
-
-                        const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .vst3 });
-                        const install_pkginfo = darwin.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
-                        vst3_step.dependOn(&install_plist.step);
-                        vst3_step.dependOn(&install_pkginfo.step);
+                        adhoc_sign_run.step.dependOn(&install_plist.step);
+                        adhoc_sign_run.step.dependOn(&install_pkginfo.step);
+                        adhoc_sign_run.step.dependOn(&install_vst3.step);
+                        if (config.vst3_auto_manifest) {
+                            adhoc_sign_run.step.dependOn(&install_module_info.step);
+                        }
+                        vst3_step.dependOn(&adhoc_sign_run.step);
                     },
                     .linux => {
                         const bundle_subpath = b.fmt(
@@ -175,6 +188,9 @@ pub fn finalize(self: *Plugin) Result {
                             .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
                             .dest_sub_path = b.fmt("{s}.vst3", .{vst3.name}),
                         });
+                        if (config.vst3_auto_manifest) {
+                            vst3_step.dependOn(&install_module_info.step);
+                        }
                         vst3_step.dependOn(&install_vst3.step);
                     },
                     .windows => {
@@ -194,23 +210,12 @@ pub fn finalize(self: *Plugin) Result {
                             .dest_dir = .{ .override = .{ .custom = bundle_subpath } },
                             .dest_sub_path = b.fmt("{s}.vst3", .{vst3.name}),
                         });
+                        if (config.vst3_auto_manifest) {
+                            vst3_step.dependOn(&install_module_info.step);
+                        }
                         vst3_step.dependOn(&install_vst3.step);
                     },
                     else => @panic("unsupported os"),
-                }
-
-                if (config.vst3_auto_manifest) {
-                    const install_module_info = vst3_manifest.addInstallModuleInfo(
-                        b,
-                        juce,
-                        vst3.name,
-                        .{
-                            .target = target,
-                            .optimize = optimize,
-                            .flags = required_flags.cxx,
-                        },
-                    );
-                    vst3_step.dependOn(&install_module_info.step);
                 }
 
                 result.artifacts.put(b.allocator, .vst3, vst3) catch @panic("OOM");
@@ -246,17 +251,16 @@ pub fn finalize(self: *Plugin) Result {
                 });
 
                 const install_au = darwin.addInstallBundle(au, .{ .plugin = .au });
-                const codesign_run = darwin.addAdhocCodesign(
+                const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .au });
+                const install_pkginfo = darwin.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
+                const adhoc_sign = darwin.addAdhocSign(
                     b,
                     b.getInstallPath(.prefix, b.fmt("{s}.component", .{au.name})),
                 );
-                codesign_run.step.dependOn(&install_au.step);
-                au_step.dependOn(&codesign_run.step);
-
-                const install_plist = darwin.addInstallInfoPlist(juceaide, info_text_file, config, .{ .plugin = .au });
-                const install_pkginfo = darwin.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
-                au_step.dependOn(&install_plist.step);
-                au_step.dependOn(&install_pkginfo.step);
+                adhoc_sign.step.dependOn(&install_plist.step);
+                adhoc_sign.step.dependOn(&install_pkginfo.step);
+                adhoc_sign.step.dependOn(&install_au.step);
+                au_step.dependOn(&adhoc_sign.step);
 
                 result.artifacts.put(b.allocator, .au, au) catch @panic("OOM");
                 result.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");

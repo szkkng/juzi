@@ -12,7 +12,7 @@ pub fn addSdkPaths(b: *std.Build, m: *std.Build.Module) void {
     m.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ sdkPath, "/usr/lib" }) });
 }
 
-pub fn addAdhocCodesign(
+pub fn addAdhocSign(
     b: *std.Build,
     artifact_path: []const u8,
 ) *std.Build.Step.Run {
