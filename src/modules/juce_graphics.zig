@@ -47,6 +47,9 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             root_module.linkSystemLibrary("freetype2", .{});
             root_module.linkSystemLibrary("fontconfig", .{});
         },
+        .windows => {
+            root_module.linkSystemLibrary("gdi32", .{});
+        },
         else => {},
     }
 }

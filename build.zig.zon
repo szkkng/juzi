@@ -5,8 +5,8 @@
     .fingerprint = 0xc65b2a4087017892,
     .dependencies = .{
         .juce = .{
-            .url = "git+https://github.com/juce-framework/JUCE?ref=9.0.0#f8f8864172464b9adf9eba6101e1f784838d1597",
-            .hash = "N-V-__8AAMZnhQW3VJsb87mklF_LgmGCv2WKRd786cp3lJrH",
+            .url = "git+https://github.com/juce-framework/JUCE?ref=9.0.1#e18f7f506c0b96f2c738a0bcd7fe6467a5005ad8",
+            .hash = "N-V-__8AAG2KgAWQaLnIKAeur76RI1tJKMF140PCwUgGQQGm",
         },
     },
     .paths = .{

@@ -3,7 +3,7 @@ const JuceModule = @import("../JuceModule.zig");
 
 pub const juce_module: JuceModule = .{
     .name = "juce_build_tools",
-    .deps = &.{@import("juce_gui_basics.zig").juce_module},
+    .deps = &.{@import("juce_graphics.zig").juce_module},
     .configure = configure,
 };
 

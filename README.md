@@ -15,7 +15,7 @@ Supports VST3, AUv2, and Standalone plugins on macOS, Linux, and Windows.
 
 ## Dependencies
 
-- JUCE v9.0.0 (automatically fetched by the Zig build system)
+- JUCE v9.0.1 (automatically fetched by the Zig build system)
 
 ## Usage
 
