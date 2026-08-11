@@ -41,7 +41,9 @@ const zon = @import("build.zig.zon");
 const juzi = @import("juzi");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{
+        .default_target = if (builtin.os.tag == .windows) .{ .abi = .msvc } else .{},
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     // Initialize the plugin.
@@ -89,11 +91,7 @@ pub fn build(b: *std.Build) void {
 To build:
 
 ```bash
-# macOS, Linux
 zig build
-
-# Windows
-zig build -Dtarget=native-windows-msvc
 ```
 
 For release builds, add `-Doptimize=ReleaseFast`.

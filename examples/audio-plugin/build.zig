@@ -1,10 +1,13 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const juzi = @import("juzi");
 const zon = @import("build.zig.zon");
 const zcc = @import("compile_commands");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+    const target = b.standardTargetOptions(.{
+        .default_target = if (builtin.os.tag == .windows) .{ .abi = .msvc } else .{},
+    });
     const optimize = b.standardOptimizeOption(.{});
 
     var plugin = juzi.Plugin.init(b, .{
