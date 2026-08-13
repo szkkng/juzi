@@ -41,16 +41,9 @@ const zon = @import("build.zig.zon");
 const juzi = @import("juzi");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{
-        .default_target = if (builtin.os.tag == .windows) .{ .abi = .msvc } else .{},
-    });
-    const optimize = b.standardOptimizeOption(.{});
-
     // Initialize the plugin.
     var plugin = juzi.Plugin.init(b, .{
         .juzi = b.dependency("juzi", .{}),
-        .target = target,
-        .optimize = optimize,
         .config = .{
             .product_name = "JuziPlugin",
             .version = zon.version,

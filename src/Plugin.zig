@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const Plugin = @This();
 const darwin = @import("darwin.zig");
 const windows = @import("windows.zig");
@@ -23,23 +24,27 @@ juce_modules: []const JuceModule,
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
-    target: std.Build.ResolvedTarget,
-    optimize: std.builtin.OptimizeMode,
     config: Config.Options,
     juce_modules: []const JuceModule,
     cxx_standard: CxxStandard = .cxx17,
+    target: ?std.Build.ResolvedTarget = null,
+    optimize: ?std.builtin.OptimizeMode = null,
 };
 
 pub fn init(b: *std.Build, options: InitOptions) Plugin {
-    const isWindows = options.target.result.os.tag == .windows;
+    const target = options.target orelse b.standardTargetOptions(.{
+        .default_target = if (builtin.os.tag == .windows) .{ .abi = .msvc } else .{},
+    });
+    const optimize = options.optimize orelse b.standardOptimizeOption(.{});
+    const isWindows = target.result.os.tag == .windows;
 
-    if (isWindows and options.target.result.abi != .msvc)
+    if (isWindows and target.result.abi != .msvc)
         @panic("Windows builds require the MSVC ABI");
 
     return Plugin{
         .root_module = b.createModule(.{
-            .target = options.target,
-            .optimize = options.optimize,
+            .target = target,
+            .optimize = optimize,
             .link_libc = true,
             .link_libcpp = !isWindows,
             // Temporary disable sanitizer on Windows due to the following:
