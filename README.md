@@ -32,7 +32,7 @@ zig fetch --save git+https://codeberg.org/kengo/juzi
 ```
 
 Then, configure your `build.zig` to use juzi.  
-Here is an example configuration for an audio plugin project:
+Here is a minimal example:
 
 ```zig
 const std = @import("std");
@@ -53,7 +53,6 @@ pub fn build(b: *std.Build) void {
             .formats = &.{ .vst3, .au, .standalone },
         },
         .juce_modules = &.{juzi.modules.juce_audio_utils},
-        .cxx_standard = .cxx20,
     });
 
     // Add the plugin's C++ source files.
