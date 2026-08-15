@@ -70,6 +70,7 @@ pub fn finalize(self: *Plugin) Result {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize.?;
+    const config = self.config;
     const juce = self.juce;
     var result: Result = .{
         .artifacts = .empty,
@@ -79,12 +80,15 @@ pub fn finalize(self: *Plugin) Result {
         darwin.addSdkPaths(b, self.root_module);
     }
 
+    const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
+    linkOptionalLibraries(self, self.root_module, config);
+
     setup.addStandardDefs(self.root_module, optimize);
-    setup.addPluginDefinitions(self.root_module, self.config.formats);
+    setup.addPluginDefinitions(self.root_module, config.formats);
 
     var extra_flags: std.ArrayList([]const u8) = .empty;
     extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
-    const plugin_macros = getPluginMacros(b, self.config) catch @panic("OOM");
+    const plugin_macros = getPluginMacros(b, config) catch @panic("OOM");
     extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
     const juce_modules = setup.resolveModules(b, self.juce_modules);
@@ -111,7 +115,6 @@ pub fn finalize(self: *Plugin) Result {
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
-    linkOptionalLibraries(self, plugin_shared_lib.root_module, self.config);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
@@ -123,9 +126,6 @@ pub fn finalize(self: *Plugin) Result {
             plugin_shared_lib.root_module.linkLibrary(binary_data_lib);
         }
     }
-
-    const config = self.config;
-    const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
 
     for (config.formats) |format| {
         switch (format) {
