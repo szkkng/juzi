@@ -111,7 +111,7 @@ pub fn finalize(self: *Plugin) Result {
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
-    linkOptionalLibraries(plugin_shared_lib.root_module, self.config);
+    linkOptionalLibraries(self, plugin_shared_lib.root_module, self.config);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
@@ -339,7 +339,7 @@ pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
-fn linkOptionalLibraries(m: *std.Build.Module, config: Config) void {
+fn linkOptionalLibraries(self: *Plugin, m: *std.Build.Module, config: Config) void {
     const os_tag = m.resolved_target.?.result.os.tag;
     switch (os_tag) {
         .linux => {
@@ -356,10 +356,22 @@ fn linkOptionalLibraries(m: *std.Build.Module, config: Config) void {
                 m.linkSystemLibrary("gtk+-x11-3.0", .{});
             }
         },
-        else => {
-            if (os_tag.isDarwin()) {
-                // TODO: Link StoreKit and ImageIO when needed.
+        .macos, .ios => {
+            self.addJuceMacro("JUCE_IN_APP_PURCHASES", if (config.needs_store_kit) "1" else "0");
+
+            if (config.needs_store_kit) {
+                m.linkFramework("StoreKit", .{});
+            }
+
+            if (config.camera_permission_enabled) |is_enabled| {
+                if (os_tag == .ios and is_enabled) {
+                    m.linkFramework("ImageIO", .{});
+                }
             }
         },
+        .windows => {
+            // TODO
+        },
+        else => {},
     }
 }
