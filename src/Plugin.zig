@@ -47,9 +47,11 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
             .target = target,
             .optimize = optimize,
             .link_libc = true,
+            // Zig can't build libcpp for MSVC:
+            // https://github.com/ziglang/zig/issues/5312
             .link_libcpp = !isWindows,
-            // Temporary disable sanitizer on Windows due to the following:
-            // https://github.com/juce-framework/JUCE/issues/1697
+            // Temporary disable sanitizer on Windows:
+            // https://codeberg.org/kengo/juzi/issues/12
             .sanitize_c = if (isWindows) .off else null,
         }),
         .juce = options.juzi.builder.dependency("juce", .{}),
