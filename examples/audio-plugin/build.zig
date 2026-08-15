@@ -29,10 +29,9 @@ pub fn build(b: *std.Build) void {
             "-Werror",
         },
     });
-
-    plugin.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    plugin.addJuceMacro("JUCE_WEB_BROWSER", "0");
-    plugin.addJuceMacro("JUCE_USE_CURL", "0");
+    plugin.root_module.addCMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    plugin.root_module.addCMacro("JUCE_WEB_BROWSER", "0");
+    plugin.root_module.addCMacro("JUCE_USE_CURL", "0");
 
     // Configure embedded binary data here, similar to JUCE's add_binary_data.
     // plugin.addBinaryData(.{

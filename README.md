@@ -64,10 +64,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // Configure JUCE-related preprocessor macros.
-    plugin.addJuceMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
-    plugin.addJuceMacro("JUCE_WEB_BROWSER", "0");
-    plugin.addJuceMacro("JUCE_USE_CURL", "0");
+    // Configure JUCE macros.
+    plugin.root_module.addCMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");
+    plugin.root_module.addCMacro("JUCE_WEB_BROWSER", "0");
+    plugin.root_module.addCMacro("JUCE_USE_CURL", "0");
 
     // Finalize the plugin after all configuration is complete.
     const result = plugin.finalize();

@@ -16,7 +16,6 @@ pub const Config = @import("plugin/Config.zig");
 
 juce: *std.Build.Dependency,
 root_module: *std.Build.Module,
-juce_macros: std.ArrayList([]const u8),
 binary_data: std.ArrayList(BinaryData.CreateOptions),
 cxx_standard: CxxStandard,
 config: Config,
@@ -52,7 +51,6 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
             .sanitize_c = if (isWindows) .off else null,
         }),
         .juce = options.juzi.builder.dependency("juce", .{}),
-        .juce_macros = .empty,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
         .config = Config.init(b, options.config),
@@ -81,13 +79,12 @@ pub fn finalize(self: *Plugin) Result {
     }
 
     const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
-    linkOptionalLibraries(self, self.root_module, config);
+    linkOptionalLibraries(self.root_module, config);
 
     setup.addStandardDefs(self.root_module, optimize);
     setup.addPluginDefinitions(self.root_module, config.formats);
 
     var extra_flags: std.ArrayList([]const u8) = .empty;
-    extra_flags.appendSlice(b.allocator, self.juce_macros.items) catch @panic("OOM");
     const plugin_macros = getPluginMacros(b, config) catch @panic("OOM");
     extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
 
@@ -142,6 +139,7 @@ pub fn finalize(self: *Plugin) Result {
                 });
                 setup.addStandardDefs(vst3.root_module, optimize);
                 setup.addPluginDefinitions(vst3.root_module, &.{.vst3});
+                vst3.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 vst3.root_module.linkLibrary(plugin_shared_lib);
                 vst3.root_module.addIncludePath(juce.path("modules"));
                 vst3.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
@@ -243,6 +241,7 @@ pub fn finalize(self: *Plugin) Result {
                 darwin.addSdkPaths(b, au.root_module);
                 setup.addStandardDefs(au.root_module, optimize);
                 setup.addPluginDefinitions(au.root_module, &.{.au});
+                au.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 au.root_module.linkLibrary(plugin_shared_lib);
                 au.root_module.addIncludePath(juce.path("modules"));
                 au.root_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
@@ -279,6 +278,7 @@ pub fn finalize(self: *Plugin) Result {
                 });
                 setup.addStandardDefs(standalone.root_module, optimize);
                 setup.addPluginDefinitions(standalone.root_module, &.{.standalone});
+                standalone.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 standalone.root_module.linkLibrary(plugin_shared_lib);
                 standalone.root_module.addIncludePath(juce.path("modules"));
                 standalone.root_module.addCSourceFiles(.{
@@ -326,20 +326,12 @@ pub fn finalize(self: *Plugin) Result {
     return result;
 }
 
-// Similar to `std.Build.Module.addCMacro`, but for defining
-// JUCE_* macros that apply to all JUCE-related compilation,
-// not just the root module.
-pub fn addJuceMacro(self: *Plugin, name: []const u8, value: []const u8) void {
-    const b = self.root_module.owner;
-    self.juce_macros.append(b.allocator, b.fmt("-D{s}={s}", .{ name, value })) catch @panic("OOM");
-}
-
 pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
 
-fn linkOptionalLibraries(self: *Plugin, m: *std.Build.Module, config: Config) void {
+fn linkOptionalLibraries(m: *std.Build.Module, config: Config) void {
     const os_tag = m.resolved_target.?.result.os.tag;
     switch (os_tag) {
         .linux => {
@@ -357,7 +349,7 @@ fn linkOptionalLibraries(self: *Plugin, m: *std.Build.Module, config: Config) vo
             }
         },
         .macos, .ios => {
-            self.addJuceMacro("JUCE_IN_APP_PURCHASES", if (config.needs_store_kit) "1" else "0");
+            m.addCMacro("JUCE_IN_APP_PURCHASES", if (config.needs_store_kit) "1" else "0");
 
             if (config.needs_store_kit) {
                 m.linkFramework("StoreKit", .{});
