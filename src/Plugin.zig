@@ -20,6 +20,8 @@ binary_data: std.ArrayList(BinaryData.CreateOptions),
 cxx_standard: CxxStandard,
 config: Config,
 juce_modules: []const JuceModule,
+artifacts: std.AutoHashMapUnmanaged(Format, *std.Build.Step.Compile),
+install_steps: std.AutoHashMapUnmanaged(Format, *std.Build.Step),
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
@@ -55,6 +57,8 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
         .binary_data = .empty,
         .config = Config.init(b, options.config),
         .juce_modules = options.juce_modules,
+        .artifacts = .empty,
+        .install_steps = .empty,
     };
 }
 
@@ -64,16 +68,12 @@ pub const Result = struct {
     binary_data: ?*std.Build.Step.Compile = null,
 };
 
-pub fn finalize(self: *Plugin) Result {
+pub fn finalize(self: *Plugin) void {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize.?;
     const config = self.config;
     const juce = self.juce;
-    var result: Result = .{
-        .artifacts = .empty,
-        .install_steps = .empty,
-    };
     if (target.result.os.tag.isDarwin()) {
         darwin.addSdkPaths(b, self.root_module);
     }
@@ -119,7 +119,6 @@ pub fn finalize(self: *Plugin) Result {
             for (binary_data_lib.root_module.include_dirs.items) |include_dir| {
                 self.root_module.addIncludePath(include_dir.path);
             }
-            result.binary_data = binary_data_lib;
             plugin_shared_lib.root_module.linkLibrary(binary_data_lib);
         }
     }
@@ -221,8 +220,8 @@ pub fn finalize(self: *Plugin) Result {
                     else => @panic("unsupported os"),
                 }
 
-                result.artifacts.put(b.allocator, .vst3, vst3) catch @panic("OOM");
-                result.install_steps.put(b.allocator, .vst3, vst3_step) catch @panic("OOM");
+                self.artifacts.put(b.allocator, .vst3, vst3) catch @panic("OOM");
+                self.install_steps.put(b.allocator, .vst3, vst3_step) catch @panic("OOM");
             },
             .au => {
                 if (!target.result.os.tag.isDarwin()) {
@@ -266,8 +265,8 @@ pub fn finalize(self: *Plugin) Result {
                 adhoc_sign.step.dependOn(&install_au.step);
                 au_step.dependOn(&adhoc_sign.step);
 
-                result.artifacts.put(b.allocator, .au, au) catch @panic("OOM");
-                result.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");
+                self.artifacts.put(b.allocator, .au, au) catch @panic("OOM");
+                self.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");
             },
             .standalone => {
                 const standalone_step = b.step("standalone", "Build standalone");
@@ -317,13 +316,11 @@ pub fn finalize(self: *Plugin) Result {
                 const run_step = b.step("run", "Run standalone");
                 run_step.dependOn(&run_cmd.step);
 
-                result.artifacts.put(b.allocator, .standalone, standalone) catch @panic("OOM");
-                result.install_steps.put(b.allocator, .standalone, standalone_step) catch @panic("OOM");
+                self.artifacts.put(b.allocator, .standalone, standalone) catch @panic("OOM");
+                self.install_steps.put(b.allocator, .standalone, standalone_step) catch @panic("OOM");
             },
         }
     }
-
-    return result;
 }
 
 pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {

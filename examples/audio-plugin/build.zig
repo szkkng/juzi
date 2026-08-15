@@ -40,9 +40,9 @@ pub fn build(b: *std.Build) void {
     //     .files = &.{ "res/juzi.wav", "res/juzi.icon" },
     // });
 
-    const result = plugin.finalize();
+    plugin.finalize();
 
-    var steps_it = result.install_steps.valueIterator();
+    var steps_it = plugin.install_steps.valueIterator();
     while (steps_it.next()) |step| {
         b.getInstallStep().dependOn(step.*);
     }
@@ -50,17 +50,13 @@ pub fn build(b: *std.Build) void {
     // Create a step that generates compile_commands.json.
     // Running `zig build cdb` will write the file to the project root.
     var targets: std.ArrayList(*std.Build.Step.Compile) = .empty;
-    var artifacts_it = result.artifacts.valueIterator();
+    var artifacts_it = plugin.artifacts.valueIterator();
     while (artifacts_it.next()) |artifact| {
         targets.append(b.allocator, artifact.*) catch @panic("OOM");
     }
-    const cdb_step = zcc.createStep(b, "cdb", targets.toOwnedSlice(b.allocator) catch @panic("OOM"));
-    _ = cdb_step;
-
-    // If you configure binary data above, make the cdb step depend on the
-    // generated BinaryData target. Otherwise, compile_commands.json
-    // generation will fail.
-    // if (result.binary_data) |bd| {
-    //     cdb_step.dependOn(&bd.step);
-    // }
+    const targetsSlice = targets.toOwnedSlice(b.allocator) catch @panic("OOM");
+    const cdb_step = zcc.createStep(b, "cdb", targetsSlice);
+    for (targetsSlice) |target| {
+        cdb_step.dependOn(&target.step);
+    }
 }

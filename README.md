@@ -70,10 +70,10 @@ pub fn build(b: *std.Build) void {
     plugin.root_module.addCMacro("JUCE_USE_CURL", "0");
 
     // Finalize the plugin after all configuration is complete.
-    const result = plugin.finalize();
+    plugin.finalize();
 
     // Add the collected install steps as dependencies of the top-level install step.
-    var steps_it = result.install_steps.valueIterator();
+    var steps_it = plugin.install_steps.valueIterator();
     while (steps_it.next()) |step| {
         b.getInstallStep().dependOn(step.*);
     }
