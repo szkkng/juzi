@@ -403,10 +403,15 @@ fn addInstallModuleInfo(
     });
     manifest_helper.root_module.addIncludePath(juce.path("modules"));
     manifest_helper.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+
+    var flags: std.ArrayList([]const u8) = .empty;
+    flags.appendSlice(b.allocator, options.flags) catch @panic("OOM");
+    flags.append(b.allocator, CxxStandard.cxx17.flag()) catch @panic("OOM");
+
     manifest_helper.root_module.addCSourceFiles(.{
         .root = juce.path("modules/juce_audio_plugin_client/VST3"),
         .files = &.{"juce_VST3ManifestHelper.cpp"},
-        .flags = options.flags,
+        .flags = flags.items,
     });
 
     const manifest_helper_cmd = b.addRunArtifact(manifest_helper);
