@@ -1,7 +1,7 @@
 const std = @import("std");
 const JuceModule = @import("JuceModule.zig");
-const Config = @import("plugin/Config.zig");
-const Format = @import("plugin/format.zig").Format;
+const Config = @import("Config.zig");
+const Format = @import("Plugin.zig").Format;
 
 pub const ModuleMap = std.StringHashMapUnmanaged(JuceModule);
 

@@ -5,14 +5,11 @@ const darwin = @import("darwin.zig");
 const windows = @import("windows.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
-const vst3_manifest = @import("plugin/vst3_manifest.zig");
-const Vst3Category = @import("plugin/category.zig").Vst3Category;
 const setup = @import("setup.zig");
 
-pub const Format = @import("plugin/format.zig").Format;
 pub const JuceModule = @import("JuceModule.zig");
 pub const CxxStandard = setup.CxxStandard;
-pub const Config = @import("plugin/Config.zig");
+pub const Config = @import("Config.zig");
 
 juzi: *std.Build.Dependency,
 root_module: *std.Build.Module,
@@ -25,6 +22,31 @@ juce_modules: []const JuceModule,
 artifacts: std.AutoHashMapUnmanaged(Format, *std.Build.Step.Compile),
 install_steps: std.AutoHashMapUnmanaged(Format, *std.Build.Step),
 copy_step: ?*std.Build.Step = null,
+
+// TODO: support more plugin formats
+pub const Format = enum {
+    vst3,
+    standalone,
+    // vst,
+    au,
+    // auv3,
+    // aax,
+    // lv2,
+    // unity,
+
+    pub fn internalIdentifier(self: Format) []const u8 {
+        return switch (self) {
+            .vst3 => "VST3",
+            .standalone => "Standalone Plugin",
+            // .vst => "VST",
+            .au => "AU",
+            // .auv3 => "AUv3 AppExtension",
+            // .aax => "AAX",
+            // .lv2 => "LV2",
+            // .unity => "Unity Plugin",
+        };
+    }
+};
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
@@ -150,7 +172,7 @@ pub fn finalize(self: *Plugin) void {
                     .flags = required_flags.cxx,
                 });
 
-                const install_module_info = vst3_manifest.addInstallModuleInfo(
+                const install_module_info = addInstallModuleInfo(
                     b,
                     juce,
                     vst3.name,
@@ -357,10 +379,209 @@ pub fn finalize(self: *Plugin) void {
     }
 }
 
+const AddInstallModuleInfoOptions = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    flags: []const []const u8 = &.{},
+};
+
+// Creates the install step for generating and installing the VST3 moduleinfo.json file.
+fn addInstallModuleInfo(
+    b: *std.Build,
+    juce: *std.Build.Dependency,
+    product_name: []const u8,
+    options: AddInstallModuleInfoOptions,
+) *std.Build.Step.InstallFile {
+    const manifest_helper = b.addExecutable(.{
+        .name = "juce_vst3_manifest_helper",
+        .root_module = b.createModule(.{
+            .target = options.target,
+            .optimize = options.optimize,
+            .link_libc = true,
+            .link_libcpp = options.target.result.os.tag != .windows,
+        }),
+    });
+    manifest_helper.root_module.addIncludePath(juce.path("modules"));
+    manifest_helper.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types/VST3_SDK"));
+    manifest_helper.root_module.addCSourceFiles(.{
+        .root = juce.path("modules/juce_audio_plugin_client/VST3"),
+        .files = &.{"juce_VST3ManifestHelper.cpp"},
+        .flags = options.flags,
+    });
+
+    const manifest_helper_cmd = b.addRunArtifact(manifest_helper);
+    const out_module_info = manifest_helper_cmd.captureStdOut(.{});
+    const install_module_info = b.addInstallFileWithDir(
+        out_module_info,
+        .prefix,
+        b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
+    );
+    setup.addStandardDefs(manifest_helper.root_module, options.optimize);
+
+    switch (options.target.result.os.tag) {
+        .macos => {
+            manifest_helper.root_module.linkFramework("Foundation", .{});
+            darwin.addSdkPaths(b, manifest_helper.root_module);
+        },
+        .windows => {
+            manifest_helper.root_module.linkSystemLibrary("ole32", .{});
+        },
+        else => {},
+    }
+
+    return install_module_info;
+}
+
 pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
 }
+
+pub const Vst2Category = enum {
+    kPlugCategUnknown,
+    kPlugCategEffect,
+    kPlugCategSynth,
+    kPlugCategAnalysis,
+    kPlugCategMastering,
+    kPlugCategSpacializer,
+    kPlugCategRoomFx,
+    kPlugSurroundFx,
+    kPlugCategRestoration,
+    kPlugCategOfflineProcess,
+    kPlugCategShell,
+    kPlugCategGenerator,
+
+    pub fn default(is_synth: bool) Vst2Category {
+        return if (is_synth) .kPlugCategSynth else .kPlugCategEffect;
+    }
+};
+
+pub const Vst3Category = enum {
+    Fx,
+    Instrument,
+    Analyzer,
+    Delay,
+    Distortion,
+    Drum,
+    Dynamics,
+    EQ,
+    External,
+    Filter,
+    Generator,
+    Mastering,
+    Modulation,
+    Mono,
+    Network,
+    NoOfflineProcess,
+    OnlyOfflineProcess,
+    OnlyRT,
+    Pitch_Shift,
+    Restoration,
+    Reverb,
+    Sampler,
+    Spatial,
+    Stereo,
+    Surround,
+    Synth,
+    Tools,
+    Up_Downmix,
+
+    pub fn internalIdentifier(self: Vst3Category) []const u8 {
+        return switch (self) {
+            .Pitch_Shift => "Pitch Shift",
+            .Up_Downmix => "Up-Downmix",
+            else => @tagName(self),
+        };
+    }
+
+    // Returns a new list of categories with defaults applied.
+    // Ensures `.Fx` or `.Instrument` appears first if omitted, depending on `is_synth`.
+    pub fn withDefaults(
+        allocator: std.mem.Allocator,
+        existing_categories: []const Vst3Category,
+        is_synth: bool,
+    ) ![]const Vst3Category {
+        if (existing_categories.len == 0) {
+            return if (is_synth) &.{ .Instrument, .Synth } else &.{.Fx};
+        }
+
+        var categArray: std.ArrayList(Vst3Category) = .empty;
+
+        for (existing_categories) |category| {
+            try categArray.append(allocator, category);
+        }
+
+        const contains_instrument = std.mem.containsAtLeastScalar(
+            Vst3Category,
+            existing_categories,
+            1,
+            .Instrument,
+        );
+        const contains_fx = std.mem.containsAtLeastScalar(
+            Vst3Category,
+            existing_categories,
+            1,
+            .Fx,
+        );
+
+        if (!contains_instrument and !contains_fx) {
+            try categArray.insert(allocator, 0, if (is_synth) .Instrument else .Fx);
+        } else {
+            if (contains_instrument) {
+                const inst_index = std.mem.indexOf(Vst3Category, existing_categories, &.{.Instrument}).?;
+                const inst = categArray.orderedRemove(inst_index);
+                try categArray.insert(allocator, 0, inst);
+            }
+
+            if (contains_fx) {
+                const fx_index = std.mem.indexOf(Vst3Category, existing_categories, &.{.Fx}).?;
+                const fx = categArray.orderedRemove(fx_index);
+                try categArray.insert(allocator, 0, fx);
+            }
+        }
+
+        return try categArray.toOwnedSlice(allocator);
+    }
+
+    // Converts the category list into a `|`-separated VST3 category string.
+    // e.g. `.{ .Fx, .Reverb }` → "Fx|Reverb"
+    pub fn join(allocator: std.mem.Allocator, categories: []const Vst3Category) []const u8 {
+        var categoryStrings: std.ArrayList([]const u8) = .empty;
+        defer categoryStrings.deinit(allocator);
+        for (categories) |category| {
+            categoryStrings.append(allocator, category.internalIdentifier()) catch @panic("OOM");
+        }
+        return std.mem.join(allocator, "|", categoryStrings.items) catch @panic("OOM");
+    }
+};
+
+pub const AudioUnitMainType = enum {
+    kAudioUnitType_Effect,
+    kAudioUnitType_FormatConverter,
+    kAudioUnitType_Generator,
+    kAudioUnitType_MIDIProcessor,
+    kAudioUnitType_Mixer,
+    kAudioUnitType_MusicDevice,
+    kAudioUnitType_MusicEffect,
+    kAudioUnitType_OfflineEffect,
+    kAudioUnitType_Output,
+    kAudioUnitType_Panner,
+
+    pub fn categoryCode(self: AudioUnitMainType) []const u8 {
+        return switch (self) {
+            .kAudioUnitType_Effect => "\'aufx\'",
+            .kAudioUnitType_FormatConverter => "\'aufc\'",
+            .kAudioUnitType_Generator => "\'augn\'",
+            .kAudioUnitType_MIDIProcessor => "\'aumi\'",
+            .kAudioUnitType_Mixer => "\'aumx\'",
+            .kAudioUnitType_MusicDevice => "\'aumu\'",
+            .kAudioUnitType_MusicEffect => "\'aumf\'",
+            .kAudioUnitType_OfflineEffect => "\'auol\'",
+            .kAudioUnitType_Output => "\'auou\'",
+            .kAudioUnitType_Panner => "\'aupn\'",
+        };
+    }
+};
 
 fn addPluginMacros(m: *std.Build.Module, config: Config) void {
     const b = m.owner;

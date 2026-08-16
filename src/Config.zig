@@ -1,9 +1,9 @@
 const std = @import("std");
 const Config = @This();
-const Format = @import("format.zig").Format;
-pub const Vst2Category = @import("category.zig").Vst2Category;
-pub const Vst3Category = @import("category.zig").Vst3Category;
-pub const AudioUnitMainType = @import("category.zig").AudioUnitMainType;
+const Format = @import("Plugin.zig").Format;
+const Vst2Category = @import("Plugin.zig").Vst2Category;
+const Vst3Category = @import("Plugin.zig").Vst3Category;
+const AudioUnitMainType = @import("Plugin.zig").AudioUnitMainType;
 
 // TODO: add more fields
 // https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_target
