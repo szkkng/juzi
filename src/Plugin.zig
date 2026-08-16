@@ -14,14 +14,17 @@ pub const JuceModule = @import("JuceModule.zig");
 pub const CxxStandard = setup.CxxStandard;
 pub const Config = @import("plugin/Config.zig");
 
-juce: *std.Build.Dependency,
+juzi: *std.Build.Dependency,
 root_module: *std.Build.Module,
 binary_data: std.ArrayList(BinaryData.CreateOptions),
 cxx_standard: CxxStandard,
 config: Config,
 juce_modules: []const JuceModule,
+
+// Plugin artifacts and steps are populated by `finalize`.
 artifacts: std.AutoHashMapUnmanaged(Format, *std.Build.Step.Compile),
 install_steps: std.AutoHashMapUnmanaged(Format, *std.Build.Step),
+copy_step: ?*std.Build.Step = null,
 
 pub const InitOptions = struct {
     juzi: *std.Build.Dependency,
@@ -54,7 +57,7 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
             // https://codeberg.org/kengo/juzi/issues/12
             .sanitize_c = if (isWindows) .off else null,
         }),
-        .juce = options.juzi.builder.dependency("juce", .{}),
+        .juzi = options.juzi,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
         .config = Config.init(b, options.config),
@@ -75,7 +78,7 @@ pub fn finalize(self: *Plugin) void {
     const target = self.root_module.resolved_target.?;
     const optimize = self.root_module.optimize.?;
     const config = self.config;
-    const juce = self.juce;
+    const juce = self.juzi.builder.dependency("juce", .{});
     if (target.result.os.tag.isDarwin()) {
         darwin.addSdkPaths(b, self.root_module);
     }
@@ -124,6 +127,9 @@ pub fn finalize(self: *Plugin) void {
             plugin_shared_lib.root_module.linkLibrary(binary_data_lib);
         }
     }
+
+    const copy_step = b.step("copy", "Build and copy plugin formats to their default locations");
+    self.copy_step = copy_step;
 
     for (config.formats) |format| {
         switch (format) {
@@ -182,6 +188,15 @@ pub fn finalize(self: *Plugin) void {
                             adhoc_sign_run.step.dependOn(&install_module_info.step);
                         }
                         vst3_step.dependOn(&adhoc_sign_run.step);
+
+                        const home_dir = b.graph.environ_map.get("HOME").?;
+                        var copy_run_step = createCopyRunStep(b, .{
+                            .juzi = self.juzi,
+                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .dest_dir = b.fmt("{s}/Library/Audio/Plug-Ins/VST3", .{home_dir}),
+                        });
+                        copy_run_step.dependOn(vst3_step);
+                        copy_step.dependOn(copy_run_step);
                     },
                     .linux => {
                         const bundle_subpath = b.fmt(
@@ -196,6 +211,15 @@ pub fn finalize(self: *Plugin) void {
                             vst3_step.dependOn(&install_module_info.step);
                         }
                         vst3_step.dependOn(&install_vst3.step);
+
+                        const home_dir = b.graph.environ_map.get("HOME").?;
+                        var copy_run_step = createCopyRunStep(b, .{
+                            .juzi = self.juzi,
+                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .dest_dir = b.fmt("{s}/.vst3", .{home_dir}),
+                        });
+                        copy_run_step.dependOn(vst3_step);
+                        copy_step.dependOn(copy_run_step);
                     },
                     .windows => {
                         vst3.root_module.linkSystemLibrary("oldnames", .{});
@@ -218,6 +242,15 @@ pub fn finalize(self: *Plugin) void {
                             vst3_step.dependOn(&install_module_info.step);
                         }
                         vst3_step.dependOn(&install_vst3.step);
+
+                        const common_dir = b.graph.environ_map.get("CommonProgramW6432").?;
+                        var copy_run_step = createCopyRunStep(b, .{
+                            .juzi = self.juzi,
+                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .dest_dir = b.fmt("{s}/VST3", .{common_dir}),
+                        });
+                        copy_run_step.dependOn(vst3_step);
+                        copy_step.dependOn(copy_run_step);
                     },
                     else => @panic("unsupported os"),
                 }
@@ -266,6 +299,15 @@ pub fn finalize(self: *Plugin) void {
                 adhoc_sign.step.dependOn(&install_pkginfo.step);
                 adhoc_sign.step.dependOn(&install_au.step);
                 au_step.dependOn(&adhoc_sign.step);
+
+                const home_dir = b.graph.environ_map.get("HOME").?;
+                var copy_run_step = createCopyRunStep(b, .{
+                    .juzi = self.juzi,
+                    .src_dir = b.fmt("{s}/{s}.component", .{ b.install_prefix, au.name }),
+                    .dest_dir = b.fmt("{s}/Library/Audio/Plug-Ins/Components", .{home_dir}),
+                });
+                copy_run_step.dependOn(au_step);
+                copy_step.dependOn(copy_run_step);
 
                 self.artifacts.put(b.allocator, .au, au) catch @panic("OOM");
                 self.install_steps.put(b.allocator, .au, au_step) catch @panic("OOM");
@@ -328,6 +370,28 @@ pub fn finalize(self: *Plugin) void {
 pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
+}
+
+const CopyOptions = struct {
+    juzi: *std.Build.Dependency,
+    src_dir: []const u8,
+    dest_dir: []const u8,
+};
+
+fn createCopyRunStep(b: *std.Build, options: CopyOptions) *std.Build.Step {
+    const mod = b.createModule(.{
+        .target = b.graph.host,
+        .optimize = .Debug,
+        .root_source_file = options.juzi.path("src/copy.zig"),
+    });
+    const copy = b.addExecutable(.{
+        .name = "copy",
+        .root_module = mod,
+    });
+    const copy_run = b.addRunArtifact(copy);
+    copy_run.addArgs(&.{ options.src_dir, options.dest_dir });
+
+    return &copy_run.step;
 }
 
 fn linkOptionalLibraries(m: *std.Build.Module, config: Config) void {
