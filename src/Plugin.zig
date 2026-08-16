@@ -67,12 +67,6 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
     };
 }
 
-pub const Result = struct {
-    artifacts: std.AutoHashMapUnmanaged(Format, *std.Build.Step.Compile),
-    install_steps: std.AutoHashMapUnmanaged(Format, *std.Build.Step),
-    binary_data: ?*std.Build.Step.Compile = null,
-};
-
 pub fn finalize(self: *Plugin) void {
     const b = self.root_module.owner;
     const target = self.root_module.resolved_target.?;
