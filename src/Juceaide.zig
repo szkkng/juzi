@@ -25,6 +25,9 @@ pub fn create(
         .root = juce.path("extras/Build/juceaide"),
         .files = &.{"Main.cpp"},
     });
+    mod.addCMacro("JUCE_DISABLE_JUCE_VERSION_PRINTING", "1");
+    mod.addCMacro("JUCE_USE_CURL", "0");
+    mod.addCMacro("JUCE_STANDALONE_APPLICATION", "1");
 
     if (target.result.os.tag.isDarwin()) {
         darwin.addSdkPaths(b, mod);
@@ -38,11 +41,6 @@ pub fn create(
         juce_modules,
         .cxx17,
         target,
-        &.{
-            "-DJUCE_DISABLE_JUCE_VERSION_PRINTING=1",
-            "-DJUCE_USE_CURL=0",
-            "-DJUCE_STANDALONE_APPLICATION=1",
-        },
     );
     setup.addFlagsToLinkObjects(mod, required_flags.cxx);
     setup.addModules(mod, juce_modules, .{

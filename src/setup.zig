@@ -61,10 +61,8 @@ pub fn resolveRequiredFlags(
     modules: ModuleMap,
     cxx_standard: CxxStandard,
     target: std.Build.ResolvedTarget,
-    extra_flags: []const []const u8,
 ) JuceModule.RequiredFlags {
     var common: std.ArrayList([]const u8) = .empty;
-    common.appendSlice(b.allocator, extra_flags) catch @panic("OOM");
     common.appendSlice(b.allocator, getModuleAvailableDefs(b, modules)) catch @panic("OOM");
     common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
 

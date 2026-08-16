@@ -6,7 +6,7 @@ const windows = @import("windows.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const vst3_manifest = @import("plugin/vst3_manifest.zig");
-const getPluginMacros = @import("plugin/macros.zig").getPluginMacros;
+const Vst3Category = @import("plugin/category.zig").Vst3Category;
 const setup = @import("setup.zig");
 
 pub const Format = @import("plugin/format.zig").Format;
@@ -82,10 +82,7 @@ pub fn finalize(self: *Plugin) void {
 
     setup.addStandardDefs(self.root_module, optimize);
     setup.addPluginDefinitions(self.root_module, config.formats);
-
-    var extra_flags: std.ArrayList([]const u8) = .empty;
-    const plugin_macros = getPluginMacros(b, config) catch @panic("OOM");
-    extra_flags.appendSlice(b.allocator, plugin_macros) catch @panic("OOM");
+    addPluginMacros(self.root_module, config);
 
     const juce_modules = setup.resolveModules(b, self.juce_modules);
     const required_flags = setup.resolveRequiredFlags(
@@ -93,7 +90,6 @@ pub fn finalize(self: *Plugin) void {
         juce_modules,
         self.cxx_standard,
         target,
-        extra_flags.items,
     );
     self.root_module.addIncludePath(juce.path("modules"));
     setup.addFlagsToLinkObjects(self.root_module, required_flags.cxx);
@@ -161,7 +157,7 @@ pub fn finalize(self: *Plugin) void {
                     .{
                         .target = target,
                         .optimize = optimize,
-                        .flags = required_flags.cxx,
+                        .flags = self.root_module.c_macros.items,
                     },
                 );
 
@@ -364,6 +360,62 @@ pub fn finalize(self: *Plugin) void {
 pub fn addBinaryData(self: *Plugin, bd: BinaryData.CreateOptions) void {
     const b = self.root_module.owner;
     self.binary_data.append(b.allocator, bd) catch @panic("OOM");
+}
+
+fn addPluginMacros(m: *std.Build.Module, config: Config) void {
+    const b = m.owner;
+    const macros = &.{
+        b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}),
+        b.fmt("-DJucePlugin_IsSynth={d}", .{@intFromBool(config.is_synth)}),
+        b.fmt("-DJucePlugin_ManufacturerCode=0x{x}", .{config.plugin_manufacturer_code}),
+        b.fmt("-DJucePlugin_Manufacturer=\"{s}\"", .{config.company_name}),
+        b.fmt("-DJucePlugin_ManufacturerWebsite=\"{s}\"", .{config.company_website}),
+        b.fmt("-DJucePlugin_ManufacturerEmail=\"{s}\"", .{config.company_email}),
+        b.fmt("-DJucePlugin_PluginCode=0x{x}", .{config.plugin_code}),
+        b.fmt("-DJucePlugin_ProducesMidiOutput={d}", .{@intFromBool(config.needs_midi_output)}),
+        b.fmt("-DJucePlugin_IsMidiEffect={d}", .{@intFromBool(config.is_midi_effect)}),
+        b.fmt("-DJucePlugin_WantsMidiInput={d}", .{@intFromBool(config.needs_midi_input)}),
+        b.fmt("-DJucePlugin_EditorRequiresKeyboardFocus={d}", .{@intFromBool(config.editor_wants_keyboard_focus)}),
+        b.fmt("-DJucePlugin_Name=\"{s}\"", .{config.plugin_name}),
+        b.fmt("-DJucePlugin_Desc=\"{s}\"", .{config.description}),
+        b.fmt("-DJucePlugin_Version={s}", .{config.version}),
+        b.fmt("-DJucePlugin_VersionString=\"{s}\"", .{config.version}),
+        b.fmt("-DJucePlugin_VersionCode={s}", .{semanticVersionToVersionCode(b, config.version)}),
+        b.fmt("-DJucePlugin_VSTUniqueID={s}", .{"JucePlugin_PluginCode"}),
+        b.fmt("-DJucePlugin_VSTCategory={s}", .{@tagName(config.vst2_category)}),
+        b.fmt("-DJucePlugin_Vst3Category=\"{s}\"", .{Vst3Category.join(b.allocator, config.vst3_categories)}),
+        b.fmt("-DJucePlugin_VSTNumMidiInputs={d}", .{config.vst_num_midi_ins}),
+        b.fmt("-DJucePlugin_VSTNumMidiOutputs={d}", .{config.vst_num_midi_outs}),
+        b.fmt("-DJucePlugin_AUMainType={s}", .{config.au_main_type.categoryCode()}),
+        b.fmt("-DJucePlugin_AUSubType={s}", .{"JucePlugin_PluginCode"}),
+        b.fmt("-DJucePlugin_AUExportPrefix={s}", .{config.au_export_prefix}),
+        b.fmt("-DJucePlugin_AUExportPrefixQuoted=\"{s}\"", .{config.au_export_prefix}),
+        b.fmt("-DJucePlugin_AUManufacturerCode={s}", .{"JucePlugin_ManufacturerCode"}),
+        b.fmt("-DJucePlugin_CFBundleIdentifier={s}", .{config.bundle_id}),
+
+        // TODO:
+        // JucePlugin_AAXIdentifier
+        // JucePlugin_AAXManufacturerCode
+        // JucePlugin_AAXProductId
+        // JucePlugin_AAXCategory
+        // JucePlugin_AAXDisableBypass
+        // JucePlugin_AAXDisableMultiMono
+
+        // JucePlugin_Enable_ARA
+        // JucePlugin_ARAFactoryID
+        // JucePlugin_ARADocumentArchiveID
+        // JucePlugin_ARACompatibleArchiveIDs
+        // JucePlugin_ARAContentTypes
+        // JucePlugin_ARATransformationFlags
+    };
+
+    m.c_macros.appendSlice(b.allocator, macros) catch @panic("OOM");
+}
+
+fn semanticVersionToVersionCode(b: *std.Build, ver: []const u8) []const u8 {
+    const version = std.SemanticVersion.parse(ver) catch |err| @panic(@errorName(err));
+    const v = (version.major << 16) | (version.minor << 8) | version.patch;
+    return b.fmt("0x{X}", .{v});
 }
 
 const CopyOptions = struct {
