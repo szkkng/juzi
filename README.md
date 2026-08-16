@@ -6,12 +6,14 @@ Build JUCE audio plugins using the Zig build system.
 
 Under active development, expect breaking changes.
 
-Supports VST3, AUv2, and Standalone plugins on macOS, Linux, and Windows.
+- Supported formats: VST3, AUv2, Standalone
+- Supported platforms: macOS, Linux, Windows
 
 ## Requirements
 
-- Zig v0.16.0
-- Visual Studio Build Tools (Windows only)
+- [Zig](https://ziglang.org/download/) 0.16.0
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads) (Windows only)
+- [JUCE Linux dependencies](https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md#packages) (Linux only)
 
 ## Dependencies
 
