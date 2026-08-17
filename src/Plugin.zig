@@ -141,6 +141,12 @@ pub fn finalize(self: *Plugin) void {
     const copy_step = b.step("copy", "Build and copy plugin formats to their default locations");
     self.copy_step = copy_step;
 
+    var plugin_wrapper_macros: std.ArrayList([]const u8) = .empty;
+    for (self.root_module.c_macros.items) |macro| {
+        if (std.mem.startsWith(u8, macro, "-DJucePlugin_Build_")) continue;
+        plugin_wrapper_macros.append(b.allocator, macro) catch @panic("OOM");
+    }
+
     for (config.formats) |format| {
         switch (format) {
             .vst3 => {
@@ -154,9 +160,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addJuceStandardMacros(vst3.root_module);
                 addJucePluginBuildMacros(vst3.root_module, &.{.vst3});
-                vst3.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
+                vst3.root_module.c_macros.appendSlice(b.allocator, plugin_wrapper_macros.items) catch @panic("OOM");
                 vst3.root_module.linkLibrary(plugin_shared_lib);
                 vst3.root_module.addIncludePath(juce.path("modules"));
                 vst3.root_module.addIncludePath(juce.path("modules/juce_audio_processors_headless/format_types"));
@@ -283,9 +288,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                 });
                 darwin.addSdkPaths(b, au.root_module);
-                setup.addJuceStandardMacros(au.root_module);
                 addJucePluginBuildMacros(au.root_module, &.{.au});
-                au.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
+                au.root_module.c_macros.appendSlice(b.allocator, plugin_wrapper_macros.items) catch @panic("OOM");
                 au.root_module.linkLibrary(plugin_shared_lib);
                 au.root_module.addIncludePath(juce.path("modules"));
                 au.root_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
@@ -329,9 +333,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addJuceStandardMacros(standalone.root_module);
                 addJucePluginBuildMacros(standalone.root_module, &.{.standalone});
-                standalone.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
+                standalone.root_module.c_macros.appendSlice(b.allocator, plugin_wrapper_macros.items) catch @panic("OOM");
                 standalone.root_module.linkLibrary(plugin_shared_lib);
                 standalone.root_module.addIncludePath(juce.path("modules"));
                 standalone.root_module.addCSourceFiles(.{
