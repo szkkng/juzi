@@ -94,14 +94,6 @@ pub fn addJuceStandardMacros(root_module: *std.Build.Module) void {
     root_module.addCMacro(if (root_module.optimize.? == .Debug) "DEBUG" else "NDEBUG", "1");
 }
 
-// pub fn addJuceModuleAvailableMacros(root_module: *std.Build.Module, modules: ModuleMap) void {
-//     const b = root_module.owner;
-//     var names = modules.keyIterator();
-//     while (names.next()) |name| {
-//         root_module.addCMacro(b.fmt("JUCE_MODULE_AVAILABLE_{s}", .{name.*}), "1");
-//     }
-// }
-
 pub fn addFlagsToLinkObjects(module: *std.Build.Module, flags: []const []const u8) void {
     const b = module.owner;
     for (module.link_objects.items) |link_object| {
