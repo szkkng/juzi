@@ -35,11 +35,7 @@ pub fn create(
 
     setup.addJuceStandardMacros(mod);
 
-    const required_flags = setup.resolveRequiredFlags(
-        b,
-        .cxx17,
-        target,
-    );
+    const required_flags = setup.resolveRequiredFlags(b, .cxx17);
     setup.addFlagsToLinkObjects(mod, required_flags.cxx);
     setup.addJuceModules(mod, &.{juce_build_tools}, .{
         .builder = b,

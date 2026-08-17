@@ -8,10 +8,17 @@ pub const juce_module: JuceModule = .{
 };
 
 fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
+    var flags: std.ArrayList([]const u8) = .empty;
+    flags.appendSlice(ctx.builder.allocator, ctx.juce_required_flags.cxx) catch @panic("OOM");
+    // Zig enforces -Werror=date-time in release builds for reproducible builds,
+    // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.
+    // Disable this error as a workaround to allow JUCE to build.
+    // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
+    flags.append(ctx.builder.allocator, "-Wno-error=date-time") catch @panic("OOM");
     root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules"),
         .files = &.{"juce_core/juce_core_CompilationTime.cpp"},
-        .flags = ctx.juce_required_flags.cxx,
+        .flags = flags.items,
     });
 
     const is_darwin = ctx.target.result.os.tag.isDarwin();

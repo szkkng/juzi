@@ -54,7 +54,6 @@ fn collectJuceModule(
 pub fn resolveRequiredFlags(
     b: *std.Build,
     cxx_standard: CxxStandard,
-    target: std.Build.ResolvedTarget,
 ) JuceModule.RequiredFlags {
     var common: std.ArrayList([]const u8) = .empty;
     common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
@@ -65,23 +64,6 @@ pub fn resolveRequiredFlags(
     cxx.appendSlice(b.allocator, c_flags) catch @panic("OOM");
     cxx.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
     cxx.append(b.allocator, cxx_standard.flag()) catch @panic("OOM");
-
-    // Zig enforces -Werror=date-time in release builds for reproducible builds,
-    // but juce_core_CompilationTime.cpp uses __DATE__/__TIME__.
-    // Disable this error as a workaround to allow JUCE to build.
-    // https://github.com/ziglang/zig/pull/20821/commits/ff7bdbbd7d997b22f50704c5268839bea9321088
-    cxx.append(b.allocator, "-Wno-error=date-time") catch @panic("OOM");
-
-    // JUCE's AU plugin client can use enum values outside the usual range,
-    // which trips UBSan's enum checks when loading debug AU plugins.
-    // Zig enables these UBSan checks by default, so disable them here.
-    // https://github.com/juce-framework/JUCE/blob/1b460fe0895635a2ab8ac5c00cb5575e33e5dc1e/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm#L944
-    cxx.append(b.allocator, "-fno-sanitize=enum") catch @panic("OOM");
-
-    if (target.result.os.tag == .windows) {
-        // Suppress `error: argument unused during compilation: '-nostdinc++'`
-        cxx.append(b.allocator, "-Wno-unused-command-line-argument") catch @panic("OOM");
-    }
 
     return .{
         .c = c_flags,

@@ -107,11 +107,7 @@ pub fn finalize(self: *Plugin) void {
     addJucePluginBuildMacros(self.root_module, config.formats);
     addJucePluginConfigMacros(self.root_module, config);
 
-    const required_flags = setup.resolveRequiredFlags(
-        b,
-        self.cxx_standard,
-        target,
-    );
+    const required_flags = setup.resolveRequiredFlags(b, self.cxx_standard);
     setup.addFlagsToLinkObjects(self.root_module, required_flags.cxx);
     setup.addJuceModules(self.root_module, self.juce_modules, .{
         .builder = b,
@@ -293,13 +289,21 @@ pub fn finalize(self: *Plugin) void {
                 au.root_module.linkLibrary(plugin_shared_lib);
                 au.root_module.addIncludePath(juce.path("modules"));
                 au.root_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
+
+                var flags: std.ArrayList([]const u8) = .empty;
+                flags.appendSlice(b.allocator, required_flags.cxx) catch @panic("OOM");
+                // JUCE's AU plugin client can use enum values outside the usual range,
+                // which trips UBSan's enum checks when loading debug AU plugins:
+                // https://github.com/juce-framework/JUCE/blob/1b460fe0895635a2ab8ac5c00cb5575e33e5dc1e/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm#L939-L945
+                flags.append(b.allocator, "-fno-sanitize=enum") catch @panic("OOM");
+
                 au.root_module.addCSourceFiles(.{
                     .root = juce.path("modules/juce_audio_plugin_client"),
                     .files = &.{
                         "juce_audio_plugin_client_AU_1.mm",
                         "juce_audio_plugin_client_AU_2.mm",
                     },
-                    .flags = required_flags.cxx,
+                    .flags = flags.items,
                 });
 
                 const install_au = darwin.addInstallBundle(au, .{ .plugin = .au });
