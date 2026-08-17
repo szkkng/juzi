@@ -107,9 +107,9 @@ pub fn finalize(self: *Plugin) void {
     addPluginMacros(self.root_module, config);
 
     const juce_modules = setup.resolveModules(b, self.juce_modules);
+    setup.addJuceModuleAvailableMacros(self.root_module, juce_modules);
     const required_flags = setup.resolveRequiredFlags(
         b,
-        juce_modules,
         self.cxx_standard,
         target,
     );

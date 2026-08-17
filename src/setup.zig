@@ -58,12 +58,10 @@ fn collectModule(
 
 pub fn resolveRequiredFlags(
     b: *std.Build,
-    modules: ModuleMap,
     cxx_standard: CxxStandard,
     target: std.Build.ResolvedTarget,
 ) JuceModule.RequiredFlags {
     var common: std.ArrayList([]const u8) = .empty;
-    common.appendSlice(b.allocator, getModuleAvailableDefs(b, modules)) catch @panic("OOM");
     common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
 
     const c_flags = common.toOwnedSlice(b.allocator) catch @panic("OOM");
@@ -115,16 +113,12 @@ pub fn addPluginDefinitions(module: *std.Build.Module, active_formats: []const F
     }
 }
 
-fn getModuleAvailableDefs(
-    b: *std.Build,
-    modules: ModuleMap,
-) []const []const u8 {
-    var defs: std.ArrayList([]const u8) = .empty;
+pub fn addJuceModuleAvailableMacros(root_module: *std.Build.Module, modules: ModuleMap) void {
+    const b = root_module.owner;
     var names = modules.keyIterator();
     while (names.next()) |name| {
-        defs.append(b.allocator, b.fmt("-DJUCE_MODULE_AVAILABLE_{s}=1", .{name.*})) catch @panic("OOM");
+        root_module.addCMacro(b.fmt("JUCE_MODULE_AVAILABLE_{s}", .{name.*}), "1");
     }
-    return defs.toOwnedSlice(b.allocator) catch @panic("OOM");
 }
 
 pub fn addFlagsToLinkObjects(module: *std.Build.Module, flags: []const []const u8) void {
