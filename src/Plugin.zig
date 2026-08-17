@@ -102,7 +102,7 @@ pub fn finalize(self: *Plugin) void {
     const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
     linkOptionalLibraries(self.root_module, config);
 
-    setup.addJuceStandardMacros(self.root_module, optimize);
+    setup.addJuceStandardMacros(self.root_module);
     addJucePluginBuildMacros(self.root_module, config.formats);
     addJucePluginConfigMacros(self.root_module, config);
 
@@ -156,7 +156,7 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addJuceStandardMacros(vst3.root_module, optimize);
+                setup.addJuceStandardMacros(vst3.root_module);
                 addJucePluginBuildMacros(vst3.root_module, &.{.vst3});
                 vst3.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 vst3.root_module.linkLibrary(plugin_shared_lib);
@@ -285,7 +285,7 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                 });
                 darwin.addSdkPaths(b, au.root_module);
-                setup.addJuceStandardMacros(au.root_module, optimize);
+                setup.addJuceStandardMacros(au.root_module);
                 addJucePluginBuildMacros(au.root_module, &.{.au});
                 au.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 au.root_module.linkLibrary(plugin_shared_lib);
@@ -331,7 +331,7 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addJuceStandardMacros(standalone.root_module, optimize);
+                setup.addJuceStandardMacros(standalone.root_module);
                 addJucePluginBuildMacros(standalone.root_module, &.{.standalone});
                 standalone.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 standalone.root_module.linkLibrary(plugin_shared_lib);
@@ -421,7 +421,7 @@ fn addInstallModuleInfo(
         .prefix,
         b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
     );
-    setup.addJuceStandardMacros(manifest_helper.root_module, options.optimize);
+    setup.addJuceStandardMacros(manifest_helper.root_module);
 
     switch (options.target.result.os.tag) {
         .macos => {

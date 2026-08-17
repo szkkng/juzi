@@ -94,9 +94,9 @@ pub fn resolveRequiredFlags(
     };
 }
 
-pub fn addJuceStandardMacros(module: *std.Build.Module, optimize: std.builtin.OptimizeMode) void {
-    module.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
-    module.addCMacro(if (optimize == .Debug) "DEBUG" else "NDEBUG", "1");
+pub fn addJuceStandardMacros(root_module: *std.Build.Module) void {
+    root_module.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
+    root_module.addCMacro(if (root_module.optimize.? == .Debug) "DEBUG" else "NDEBUG", "1");
 }
 
 pub fn addJuceModuleAvailableMacros(root_module: *std.Build.Module, modules: ModuleMap) void {
