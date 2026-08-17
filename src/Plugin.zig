@@ -102,9 +102,9 @@ pub fn finalize(self: *Plugin) void {
     const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
     linkOptionalLibraries(self.root_module, config);
 
-    setup.addStandardDefs(self.root_module, optimize);
-    setup.addPluginDefinitions(self.root_module, config.formats);
-    addPluginMacros(self.root_module, config);
+    setup.addJuceStandardMacros(self.root_module, optimize);
+    addJucePluginBuildMacros(self.root_module, config.formats);
+    addJucePluginConfigMacros(self.root_module, config);
 
     const juce_modules = setup.resolveModules(b, self.juce_modules);
     setup.addJuceModuleAvailableMacros(self.root_module, juce_modules);
@@ -156,8 +156,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addStandardDefs(vst3.root_module, optimize);
-                setup.addPluginDefinitions(vst3.root_module, &.{.vst3});
+                setup.addJuceStandardMacros(vst3.root_module, optimize);
+                addJucePluginBuildMacros(vst3.root_module, &.{.vst3});
                 vst3.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 vst3.root_module.linkLibrary(plugin_shared_lib);
                 vst3.root_module.addIncludePath(juce.path("modules"));
@@ -285,8 +285,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                 });
                 darwin.addSdkPaths(b, au.root_module);
-                setup.addStandardDefs(au.root_module, optimize);
-                setup.addPluginDefinitions(au.root_module, &.{.au});
+                setup.addJuceStandardMacros(au.root_module, optimize);
+                addJucePluginBuildMacros(au.root_module, &.{.au});
                 au.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 au.root_module.linkLibrary(plugin_shared_lib);
                 au.root_module.addIncludePath(juce.path("modules"));
@@ -331,8 +331,8 @@ pub fn finalize(self: *Plugin) void {
                     .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
                     .win32_manifest = windows.createManifest(b),
                 });
-                setup.addStandardDefs(standalone.root_module, optimize);
-                setup.addPluginDefinitions(standalone.root_module, &.{.standalone});
+                setup.addJuceStandardMacros(standalone.root_module, optimize);
+                addJucePluginBuildMacros(standalone.root_module, &.{.standalone});
                 standalone.root_module.c_macros.appendSlice(b.allocator, self.root_module.c_macros.items) catch @panic("OOM");
                 standalone.root_module.linkLibrary(plugin_shared_lib);
                 standalone.root_module.addIncludePath(juce.path("modules"));
@@ -421,7 +421,7 @@ fn addInstallModuleInfo(
         .prefix,
         b.fmt("{s}.vst3/Contents/Resources/moduleinfo.json", .{product_name}),
     );
-    setup.addStandardDefs(manifest_helper.root_module, options.optimize);
+    setup.addJuceStandardMacros(manifest_helper.root_module, options.optimize);
 
     switch (options.target.result.os.tag) {
         .macos => {
@@ -588,7 +588,21 @@ pub const AudioUnitMainType = enum {
     }
 };
 
-fn addPluginMacros(m: *std.Build.Module, config: Config) void {
+/// Defines a `JucePlugin_Build_<FORMAT>` macro for each plugin format,
+/// setting it to `1` when active and `0` otherwise.
+fn addJucePluginBuildMacros(module: *std.Build.Module, active_formats: []const Format) void {
+    inline for (@typeInfo(Format).@"enum".fields) |field| {
+        const format: Format = @enumFromInt(field.value);
+        const is_active = if (std.mem.containsAtLeast(Format, active_formats, 1, &.{format})) "1" else "0";
+        switch (format) {
+            .vst3 => module.addCMacro("JucePlugin_Build_VST3", is_active),
+            .au => module.addCMacro("JucePlugin_Build_AU", is_active),
+            .standalone => module.addCMacro("JucePlugin_Build_Standalone", is_active),
+        }
+    }
+}
+
+fn addJucePluginConfigMacros(m: *std.Build.Module, config: Config) void {
     const b = m.owner;
     const macros = &.{
         b.fmt("-DJUCE_STANDALONE_APPLICATION={s}", .{"JucePlugin_Build_Standalone"}),

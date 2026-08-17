@@ -33,7 +33,7 @@ pub fn create(
         darwin.addSdkPaths(b, mod);
     }
 
-    setup.addStandardDefs(mod, optimize);
+    setup.addJuceStandardMacros(mod, optimize);
 
     const juce_modules = setup.resolveModules(b, &.{juce_build_tools});
     setup.addJuceModuleAvailableMacros(mod, juce_modules);
