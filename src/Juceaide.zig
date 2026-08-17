@@ -35,15 +35,13 @@ pub fn create(
 
     setup.addJuceStandardMacros(mod);
 
-    const juce_modules = setup.resolveModules(b, &.{juce_build_tools});
-    setup.addJuceModuleAvailableMacros(mod, juce_modules);
     const required_flags = setup.resolveRequiredFlags(
         b,
         .cxx17,
         target,
     );
     setup.addFlagsToLinkObjects(mod, required_flags.cxx);
-    setup.addModules(mod, juce_modules, .{
+    setup.addJuceModules(mod, &.{juce_build_tools}, .{
         .builder = b,
         .juce = juce,
         .target = target,

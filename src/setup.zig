@@ -3,8 +3,6 @@ const JuceModule = @import("JuceModule.zig");
 const Config = @import("Config.zig");
 const Format = @import("Plugin.zig").Format;
 
-pub const ModuleMap = std.StringHashMapUnmanaged(JuceModule);
-
 pub const CxxStandard = enum {
     cxx17,
     cxx20,
@@ -19,40 +17,37 @@ pub const CxxStandard = enum {
     }
 };
 
-pub fn resolveModules(
-    b: *std.Build,
-    requested_modules: []const JuceModule,
-) ModuleMap {
-    var modules: ModuleMap = .empty;
+const JuceModuleMap = std.StringHashMapUnmanaged(JuceModule);
 
-    for (requested_modules) |juce_module| {
-        collectModule(b, &modules, juce_module);
-    }
-
-    return modules;
-}
-
-pub fn addModules(
+pub fn addJuceModules(
     root_module: *std.Build.Module,
-    modules: ModuleMap,
+    juce_modules: []const JuceModule,
     ctx: JuceModule.BuildContext,
 ) void {
-    var iter = modules.valueIterator();
-    while (iter.next()) |module| {
-        module.*.configure(root_module, ctx);
+    const b = root_module.owner;
+
+    var map: JuceModuleMap = .empty;
+    for (juce_modules) |m| {
+        collectJuceModule(b, &map, m);
+    }
+
+    var iter = map.valueIterator();
+    while (iter.next()) |mod| {
+        mod.*.configure(root_module, ctx);
+        root_module.addCMacro(b.fmt("JUCE_MODULE_AVAILABLE_{s}", .{mod.name}), "1");
     }
 }
 
-fn collectModule(
+fn collectJuceModule(
     b: *std.Build,
-    modules: *ModuleMap,
-    juce_module: JuceModule,
+    map: *JuceModuleMap,
+    module: JuceModule,
 ) void {
-    if (modules.contains(juce_module.name)) return;
+    if (map.contains(module.name)) return;
 
-    modules.put(b.allocator, juce_module.name, juce_module) catch @panic("OOM");
-    for (juce_module.deps) |dependency| {
-        collectModule(b, modules, dependency);
+    map.put(b.allocator, module.name, module) catch @panic("OOM");
+    for (module.deps) |dependency| {
+        collectJuceModule(b, map, dependency);
     }
 }
 
@@ -99,13 +94,13 @@ pub fn addJuceStandardMacros(root_module: *std.Build.Module) void {
     root_module.addCMacro(if (root_module.optimize.? == .Debug) "DEBUG" else "NDEBUG", "1");
 }
 
-pub fn addJuceModuleAvailableMacros(root_module: *std.Build.Module, modules: ModuleMap) void {
-    const b = root_module.owner;
-    var names = modules.keyIterator();
-    while (names.next()) |name| {
-        root_module.addCMacro(b.fmt("JUCE_MODULE_AVAILABLE_{s}", .{name.*}), "1");
-    }
-}
+// pub fn addJuceModuleAvailableMacros(root_module: *std.Build.Module, modules: ModuleMap) void {
+//     const b = root_module.owner;
+//     var names = modules.keyIterator();
+//     while (names.next()) |name| {
+//         root_module.addCMacro(b.fmt("JUCE_MODULE_AVAILABLE_{s}", .{name.*}), "1");
+//     }
+// }
 
 pub fn addFlagsToLinkObjects(module: *std.Build.Module, flags: []const []const u8) void {
     const b = module.owner;

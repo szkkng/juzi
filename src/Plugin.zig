@@ -95,6 +95,7 @@ pub fn finalize(self: *Plugin) void {
     const optimize = self.root_module.optimize.?;
     const config = self.config;
     const juce = self.juzi.builder.dependency("juce", .{});
+    self.root_module.addIncludePath(juce.path("modules"));
     if (target.result.os.tag.isDarwin()) {
         darwin.addSdkPaths(b, self.root_module);
     }
@@ -106,16 +107,13 @@ pub fn finalize(self: *Plugin) void {
     addJucePluginBuildMacros(self.root_module, config.formats);
     addJucePluginConfigMacros(self.root_module, config);
 
-    const juce_modules = setup.resolveModules(b, self.juce_modules);
-    setup.addJuceModuleAvailableMacros(self.root_module, juce_modules);
     const required_flags = setup.resolveRequiredFlags(
         b,
         self.cxx_standard,
         target,
     );
-    self.root_module.addIncludePath(juce.path("modules"));
     setup.addFlagsToLinkObjects(self.root_module, required_flags.cxx);
-    setup.addModules(self.root_module, juce_modules, .{
+    setup.addJuceModules(self.root_module, self.juce_modules, .{
         .builder = b,
         .juce = juce,
         .target = target,
