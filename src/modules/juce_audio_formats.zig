@@ -12,7 +12,7 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
     root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_audio_formats"),
         .files = &.{ctx.builder.fmt("juce_audio_formats.{s}", .{if (is_darwin) "mm" else "cpp"})},
-        .flags = ctx.juce_required_flags.cxx,
+        .flags = ctx.cxxFlags(&.{}),
     });
     root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_audio_formats"),
@@ -20,7 +20,7 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             "juce_audio_formats_flac_1.c",
             "juce_audio_formats_flac_2.c",
         },
-        .flags = ctx.juce_required_flags.c,
+        .flags = ctx.cFlags(&.{}),
     });
     switch (ctx.target.result.os.tag) {
         .macos => {

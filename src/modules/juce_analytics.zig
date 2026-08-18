@@ -11,6 +11,6 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
     root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_analytics"),
         .files = &.{"juce_analytics.cpp"},
-        .flags = ctx.juce_required_flags.cxx,
+        .flags = ctx.cxxFlags(&.{}),
     });
 }

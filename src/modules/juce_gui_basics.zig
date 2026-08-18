@@ -21,7 +21,7 @@ fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void 
             "juce_gui_basics_4.cpp",
             "juce_gui_basics_5.cpp",
         },
-        .flags = ctx.juce_required_flags.cxx,
+        .flags = ctx.cxxFlags(&.{}),
     });
 
     switch (ctx.target.result.os.tag) {

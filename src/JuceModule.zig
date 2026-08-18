@@ -1,4 +1,5 @@
 const std = @import("std");
+const CxxStandard = @import("setup.zig").CxxStandard;
 const JuceModule = @This();
 
 name: []const u8,
@@ -10,16 +11,37 @@ pub const BuildContext = struct {
     juce: *std.Build.Dependency,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-    juce_required_flags: RequiredFlags,
-};
+    cxx_standard: CxxStandard,
 
-/// Required compiler flags resolved by `Plugin` for sources that include JUCE headers.
-/// They contain the JUCE preprocessor definitions and language-specific compiler options.
-/// In your `configure` callback, pass the matching field to `.flags`
-/// when calling `addCSourceFile` or `addCSourceFiles`.
-pub const RequiredFlags = struct {
-    /// Flags for C sources.
-    c: []const []const u8,
-    /// Flags for C++ and Objective-C++ sources.
-    cxx: []const []const u8,
+    pub fn cFlags(
+        self: BuildContext,
+        extra: []const []const u8,
+    ) []const []const u8 {
+        return std.mem.concat(
+            self.builder.allocator,
+            []const u8,
+            &.{
+                &.{"-fvisibility=hidden"},
+                extra,
+            },
+        ) catch @panic("OOM");
+    }
+
+    pub fn cxxFlags(
+        self: BuildContext,
+        extra: []const []const u8,
+    ) []const []const u8 {
+        return std.mem.concat(
+            self.builder.allocator,
+            []const u8,
+            &.{
+                &.{self.cxx_standard.flag()},
+                &.{
+                    "-fvisibility=hidden",
+                    "-fvisibility-inlines-hidden",
+                },
+                extra,
+            },
+        ) catch @panic("OOM");
+    }
 };

@@ -24,9 +24,9 @@ pub fn build(b: *std.Build) void {
             "PluginProcessor.cpp",
         },
         .flags = &.{
-            "-Wall",
-            "-Wextra",
-            "-Werror",
+            "--std=c++20",
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
         },
     });
     plugin.root_module.addCMacro("JUCE_VST3_CAN_REPLACE_VST2", "0");

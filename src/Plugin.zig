@@ -67,18 +67,24 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
     if (isWindows and target.result.abi != .msvc)
         @panic("Windows builds require the MSVC ABI");
 
+    const root_module = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        // Zig can't build libcpp for MSVC:
+        // https://github.com/ziglang/zig/issues/5312
+        .link_libcpp = !isWindows,
+        // Temporary disable sanitizer on Windows:
+        // https://codeberg.org/kengo/juzi/issues/12
+        .sanitize_c = if (isWindows) .off else null,
+    });
+
+    if (target.result.os.tag.isDarwin()) {
+        darwin.addSdkPaths(b, root_module);
+    }
+
     return Plugin{
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-            // Zig can't build libcpp for MSVC:
-            // https://github.com/ziglang/zig/issues/5312
-            .link_libcpp = !isWindows,
-            // Temporary disable sanitizer on Windows:
-            // https://codeberg.org/kengo/juzi/issues/12
-            .sanitize_c = if (isWindows) .off else null,
-        }),
+        .root_module = root_module,
         .juzi = options.juzi,
         .cxx_standard = options.cxx_standard,
         .binary_data = .empty,
@@ -96,33 +102,29 @@ pub fn finalize(self: *Plugin) void {
     const config = self.config;
     const juce = self.juzi.builder.dependency("juce", .{});
     self.root_module.addIncludePath(juce.path("modules"));
-    if (target.result.os.tag.isDarwin()) {
-        darwin.addSdkPaths(b, self.root_module);
-    }
 
-    const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
-    linkOptionalLibraries(self.root_module, config);
-
-    setup.addJuceStandardMacros(self.root_module);
-    addJucePluginBuildMacros(self.root_module, config.formats);
-    addJucePluginConfigMacros(self.root_module, config);
-
-    const required_flags = setup.resolveRequiredFlags(b, self.cxx_standard);
-    setup.addFlagsToLinkObjects(self.root_module, required_flags.cxx);
-    setup.addJuceModules(self.root_module, self.juce_modules, .{
+    const build_ctx: JuceModule.BuildContext = .{
         .builder = b,
         .juce = juce,
         .target = target,
         .optimize = optimize,
-        .juce_required_flags = required_flags,
-    });
+        .cxx_standard = self.cxx_standard,
+    };
+    setup.addJuceModules(self.root_module, self.juce_modules, build_ctx);
 
-    const juceaide = Juceaide.create(b, juce);
+    setup.addJuceStandardMacros(self.root_module);
+    addJucePluginBuildMacros(self.root_module, config.formats);
+    addJucePluginConfigMacros(self.root_module, config);
+    linkOptionalLibraries(self.root_module, config);
+
+    const info_text_file = setup.generateInfoText(b, config) catch @panic("Failed to generate Info.txt");
 
     const plugin_shared_lib = b.addLibrary(.{
         .name = "plugin_shared_lib",
         .root_module = self.root_module,
     });
+
+    const juceaide = Juceaide.create(b, juce);
 
     if (self.binary_data.items.len > 0) {
         for (self.binary_data.items) |bd_opts| {
@@ -168,7 +170,7 @@ pub fn finalize(self: *Plugin) void {
                         "juce_audio_plugin_client_VST3.{s}",
                         .{if (target.result.os.tag.isDarwin()) "mm" else "cpp"},
                     )},
-                    .flags = required_flags.cxx,
+                    .flags = build_ctx.cxxFlags(&.{}),
                 });
 
                 const install_module_info = addInstallModuleInfo(
@@ -291,7 +293,7 @@ pub fn finalize(self: *Plugin) void {
                 au.root_module.addIncludePath(juce.path("modules/juce_audio_plugin_client/AU"));
 
                 var flags: std.ArrayList([]const u8) = .empty;
-                flags.appendSlice(b.allocator, required_flags.cxx) catch @panic("OOM");
+                flags.appendSlice(b.allocator, build_ctx.cxxFlags(&.{})) catch @panic("OOM");
                 // JUCE's AU plugin client can use enum values outside the usual range,
                 // which trips UBSan's enum checks when loading debug AU plugins:
                 // https://github.com/juce-framework/JUCE/blob/1b460fe0895635a2ab8ac5c00cb5575e33e5dc1e/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm#L939-L945
@@ -344,7 +346,7 @@ pub fn finalize(self: *Plugin) void {
                 standalone.root_module.addCSourceFiles(.{
                     .root = juce.path("modules/juce_audio_plugin_client"),
                     .files = &.{"juce_audio_plugin_client_Standalone.cpp"},
-                    .flags = required_flags.cxx,
+                    .flags = build_ctx.cxxFlags(&.{}),
                 });
 
                 switch (target.result.os.tag) {

@@ -12,6 +12,7 @@ pub fn create(
 ) Juceaide {
     const target = if (b.graph.host.result.os.tag == .windows) b.resolveTargetQuery(.{ .abi = .msvc }) else b.graph.host;
     const optimize: std.builtin.OptimizeMode = .Debug;
+    const cxx_standard: setup.CxxStandard = .cxx17;
 
     const mod = b.createModule(.{
         .target = target,
@@ -24,6 +25,7 @@ pub fn create(
     mod.addCSourceFiles(.{
         .root = juce.path("extras/Build/juceaide"),
         .files = &.{"Main.cpp"},
+        .flags = &.{cxx_standard.flag()},
     });
     mod.addCMacro("JUCE_DISABLE_JUCE_VERSION_PRINTING", "1");
     mod.addCMacro("JUCE_USE_CURL", "0");
@@ -35,14 +37,12 @@ pub fn create(
 
     setup.addJuceStandardMacros(mod);
 
-    const required_flags = setup.resolveRequiredFlags(b, .cxx17);
-    setup.addFlagsToLinkObjects(mod, required_flags.cxx);
     setup.addJuceModules(mod, &.{juce_build_tools}, .{
         .builder = b,
         .juce = juce,
         .target = target,
         .optimize = optimize,
-        .juce_required_flags = required_flags,
+        .cxx_standard = cxx_standard,
     });
 
     const juceaide = b.addExecutable(.{

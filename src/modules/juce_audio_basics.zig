@@ -8,15 +8,11 @@ pub const juce_module: JuceModule = .{
 };
 
 fn configure(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
-    var flags: std.ArrayList([]const u8) = .empty;
-    flags.appendSlice(ctx.builder.allocator, ctx.juce_required_flags.cxx) catch @panic("OOM");
-    flags.append(ctx.builder.allocator, "-fno-sanitize=enum") catch @panic("OOM");
-
     const is_darwin = ctx.target.result.os.tag.isDarwin();
     root_module.addCSourceFiles(.{
         .root = ctx.juce.path("modules/juce_audio_basics"),
         .files = &.{ctx.builder.fmt("juce_audio_basics.{s}", .{if (is_darwin) "mm" else "cpp"})},
-        .flags = flags.items,
+        .flags = ctx.cxxFlags(&.{"-fno-sanitize=enum"}),
     });
 
     if (is_darwin) {

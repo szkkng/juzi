@@ -55,6 +55,7 @@ pub fn build(b: *std.Build) void {
             .formats = &.{ .vst3, .au, .standalone },
         },
         .juce_modules = &.{juzi.modules.juce_audio_utils},
+        .cxx_standard = .cxx20,
     });
 
     // Add the plugin's C++ source files.
@@ -63,6 +64,11 @@ pub fn build(b: *std.Build) void {
         .files = &.{
             "PluginEditor.cpp",
             "PluginProcessor.cpp",
+        },
+        .flags = &.{
+            "--std=c++20",
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
         },
     });
 

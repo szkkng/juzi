@@ -51,26 +51,6 @@ fn collectJuceModule(
     }
 }
 
-pub fn resolveRequiredFlags(
-    b: *std.Build,
-    cxx_standard: CxxStandard,
-) JuceModule.RequiredFlags {
-    var common: std.ArrayList([]const u8) = .empty;
-    common.append(b.allocator, "-fvisibility=hidden") catch @panic("OOM");
-
-    const c_flags = common.toOwnedSlice(b.allocator) catch @panic("OOM");
-
-    var cxx: std.ArrayList([]const u8) = .empty;
-    cxx.appendSlice(b.allocator, c_flags) catch @panic("OOM");
-    cxx.append(b.allocator, "-fvisibility-inlines-hidden") catch @panic("OOM");
-    cxx.append(b.allocator, cxx_standard.flag()) catch @panic("OOM");
-
-    return .{
-        .c = c_flags,
-        .cxx = cxx.toOwnedSlice(b.allocator) catch @panic("OOM"),
-    };
-}
-
 pub fn addJuceStandardMacros(root_module: *std.Build.Module) void {
     root_module.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
     root_module.addCMacro(if (root_module.optimize.? == .Debug) "DEBUG" else "NDEBUG", "1");
