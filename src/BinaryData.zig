@@ -50,6 +50,10 @@ pub fn create(juceaide: Juceaide, target: std.Build.ResolvedTarget, optimize: st
     binary_data_lib.root_module.addCSourceFiles(.{
         .root = output_dir,
         .files = binary_data_files.items,
+        .flags = &.{
+            "-fvisibility=hidden",
+            "-fvisibility-inlines-hidden",
+        },
     });
     binary_data_lib.root_module.addIncludePath(output_dir);
     binary_data_lib.step.dependOn(&binary_data_cmd.step);
