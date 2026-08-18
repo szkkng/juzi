@@ -14,20 +14,11 @@
       ...
     }:
     let
-      allSystems = [
-        "x86_64-darwin"
-        "aarch64-darwin"
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-
-      forAllSystems =
-        f: nixpkgs.lib.genAttrs allSystems (system: f { pkgs = import nixpkgs { inherit system; }; });
+      forAllSystems = f: builtins.mapAttrs f nixpkgs.legacyPackages;
     in
     {
       devShells = forAllSystems (
-        { pkgs }:
-        {
+        system: pkgs: {
           default = pkgs.mkShell {
             packages =
               with pkgs;
@@ -55,13 +46,14 @@
                 freetype
 
                 # juce_gui_basics
-                xorg.libX11
-                xorg.libXcomposite
-                xorg.libXcursor
-                xorg.libXext
-                xorg.libXinerama
-                xorg.libXrandr
-                xorg.libXrender
+                libx11
+                libxcomposite
+                libxcursor
+                libxext
+                libxinerama
+                libxrandr
+                libxrender
+                libxi
 
                 # juce_gui_extra
                 webkitgtk_4_1
