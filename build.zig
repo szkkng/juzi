@@ -1,5 +1,6 @@
 const std = @import("std");
 pub const Plugin = @import("src/Plugin.zig");
+pub const JuceModule = @import("src/JuceModule.zig");
 pub const modules = @import("src/modules.zig");
 
 pub fn build(b: *std.Build) void {

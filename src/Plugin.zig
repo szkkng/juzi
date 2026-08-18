@@ -6,9 +6,9 @@ const windows = @import("windows.zig");
 const Juceaide = @import("Juceaide.zig");
 const BinaryData = @import("BinaryData.zig");
 const setup = @import("setup.zig");
+const JuceModule = @import("JuceModule.zig");
+const CxxStandard = setup.CxxStandard;
 
-pub const JuceModule = @import("JuceModule.zig");
-pub const CxxStandard = setup.CxxStandard;
 pub const Config = @import("Config.zig");
 
 juzi: *std.Build.Dependency,
