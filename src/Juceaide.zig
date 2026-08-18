@@ -1,8 +1,8 @@
 const std = @import("std");
 const darwin = @import("darwin.zig");
 const Juceaide = @This();
+const JuceModule = @import("JuceModule.zig");
 const setup = @import("setup.zig");
-const juce_build_tools = @import("modules/juce_build_tools.zig").juce_module;
 
 artifact: *std.Build.Step.Compile,
 
@@ -52,3 +52,18 @@ pub fn create(
 
     return .{ .artifact = juceaide };
 }
+
+pub const juce_build_tools: JuceModule = .{
+    .name = "juce_build_tools",
+    .deps = &.{@import("modules/juce_graphics.zig").juce_module},
+    .configure = struct {
+        fn f(root_module: *std.Build.Module, ctx: JuceModule.BuildContext) void {
+            root_module.addIncludePath(ctx.juce.path("extras/Build/juce_build_tools"));
+            root_module.addCSourceFiles(.{
+                .root = ctx.juce.path("extras/Build/juce_build_tools"),
+                .files = &.{"juce_build_tools.cpp"},
+                .flags = ctx.cxxFlags(&.{}),
+            });
+        }
+    }.f,
+};

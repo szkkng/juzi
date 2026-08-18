@@ -6,7 +6,6 @@ pub const juce_audio_formats = @import("modules/juce_audio_formats.zig").juce_mo
 pub const juce_audio_processors = @import("modules/juce_audio_processors.zig").juce_module;
 pub const juce_audio_processors_headless = @import("modules/juce_audio_processors_headless.zig").juce_module;
 pub const juce_audio_utils = @import("modules/juce_audio_utils.zig").juce_module;
-pub const juce_build_tools = @import("modules/juce_build_tools.zig").juce_module;
 pub const juce_box2d = @import("modules/juce_box2d.zig").juce_module;
 pub const juce_core = @import("modules/juce_core.zig").juce_module;
 pub const juce_cryptography = @import("modules/juce_cryptography.zig").juce_module;
