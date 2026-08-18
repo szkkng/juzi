@@ -1,0 +1,24 @@
+name: Docs
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ forgejo.workflow_ref }}-${{ forgejo.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: codeberg-small
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: https://codeberg.org/mlugg/setup-zig@v2
+      - run: zig build docs
+      - uses: https://codeberg.org/git-pages/action@v2
+        with:
+          site: https://${{ forge.repository_owner }}.codeberg.page/juzi/
+          token: ${{ forge.token }}
+          source: zig-out/docs/
