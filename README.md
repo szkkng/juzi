@@ -102,6 +102,49 @@ You can list all available steps by running:
 zig build -l
 ```
 
+## Using custom JUCE modules
+
+You can integrate your own or third-party JUCE modules simply by defining a `juzi.JuceModule`.
+
+Here is a minimal example:
+
+```zig
+const juzi = @import("juzi");
+
+pub const my_juce_module: juzi.JuceModule = .{
+    // A unique name for this module.
+    .name = "my_juce_module",
+    // Other modules this module depends on.
+    .deps = &.{juzi.modules.juce_core},
+    // A function that adds sources and build settings to the root module.
+    .configure = struct {
+        fn f(root_module: *std.Build.Module, ctx: juzi.JuceModule.BuildContext) void {
+            root_module.addCSourceFiles(.{
+                .root = ctx.builder.path("lib/my_juce_module"),
+                .files = &.{"my_juce_module.cpp"},
+                .flags = ctx.cxxFlags(&.{}),
+            });
+        }
+    }.f,
+};
+```
+
+Then add it to the `juce_modules` field of `Plugin.init`:
+
+```zig
+pub fn build(b: *std.Build) void {
+    var plugin = juzi.Plugin.init(b, .{
+        // ...
+        .juce_modules = &.{
+            // ...
+            my_juce_module,
+        },
+    });
+}
+```
+
+For reference, see how juzi's JUCE modules are defined in [`src/modules`](./src/modules).
+
 ## Generating compile_commands.json
 
 Zig doesn't currently support generating `compile_commands.json`.  
