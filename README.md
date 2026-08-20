@@ -4,10 +4,16 @@ Build JUCE audio plugins using the Zig build system.
 
 ## Status
 
-Under active development, expect breaking changes.
+Beta. Expect breaking changes.
 
-- Supported formats: VST3, AUv2, Standalone
-- Supported platforms: macOS, Linux, Windows
+Supported:
+- Formats: VST3, AUv2, Standalone
+- Platforms: macOS, Linux, Windows
+
+Not yet supported:
+- Formats: AAX, AUv3, LV2
+- ARA
+- Icon generation
 
 ## Requirements
 
@@ -150,6 +156,11 @@ For reference, see how juzi's JUCE modules are defined in [`src/modules`](./src/
 Zig doesn't currently support generating `compile_commands.json`.  
 A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
 See the example projects in this repo for how to use it with juzi.
+
+## Examples
+
+- [Minimal](./examples/audio-plugin)
+- [JZR-Granular](https://codeberg.org/kengo/jzr-granular)
 
 ## License
 
