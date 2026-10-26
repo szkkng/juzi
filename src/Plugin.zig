@@ -191,7 +191,7 @@ pub fn finalize(self: *Plugin) void {
                         const install_pkginfo = darwin.addInstallPkgInfo(juceaide, vst3.name, .{ .plugin = .vst3 });
                         const adhoc_sign_run = darwin.addAdhocSign(
                             b,
-                            b.getInstallPath(.prefix, b.fmt("{s}.vst3", .{vst3.name})),
+                            b.graph.path(.install_prefix, b.fmt("{s}.vst3", .{vst3.name})),
                         );
                         adhoc_sign_run.step.dependOn(&install_plist.step);
                         adhoc_sign_run.step.dependOn(&install_pkginfo.step);
@@ -204,7 +204,7 @@ pub fn finalize(self: *Plugin) void {
                         const home_dir = b.graph.environ_map.get("HOME").?;
                         var copy_run_step = createCopyRunStep(b, .{
                             .juzi = self.juzi,
-                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .src_dir = b.graph.path(.install_prefix, b.fmt("{s}.vst3", .{vst3.name})),
                             .dest_dir = b.fmt("{s}/Library/Audio/Plug-Ins/VST3", .{home_dir}),
                         });
                         copy_run_step.dependOn(vst3_step);
@@ -227,7 +227,7 @@ pub fn finalize(self: *Plugin) void {
                         const home_dir = b.graph.environ_map.get("HOME").?;
                         var copy_run_step = createCopyRunStep(b, .{
                             .juzi = self.juzi,
-                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .src_dir = b.graph.path(.install_prefix, b.fmt("{s}.vst3", .{vst3.name})),
                             .dest_dir = b.fmt("{s}/.vst3", .{home_dir}),
                         });
                         copy_run_step.dependOn(vst3_step);
@@ -258,7 +258,7 @@ pub fn finalize(self: *Plugin) void {
                         const common_dir = b.graph.environ_map.get("CommonProgramW6432").?;
                         var copy_run_step = createCopyRunStep(b, .{
                             .juzi = self.juzi,
-                            .src_dir = b.fmt("{s}/{s}.vst3", .{ b.install_prefix, vst3.name }),
+                            .src_dir = b.graph.path(.install_prefix, b.fmt("{s}.vst3", .{vst3.name})),
                             .dest_dir = b.fmt("{s}/VST3", .{common_dir}),
                         });
                         copy_run_step.dependOn(vst3_step);
@@ -312,7 +312,7 @@ pub fn finalize(self: *Plugin) void {
                 const install_pkginfo = darwin.addInstallPkgInfo(juceaide, au.name, .{ .plugin = .au });
                 const adhoc_sign = darwin.addAdhocSign(
                     b,
-                    b.getInstallPath(.prefix, b.fmt("{s}.component", .{au.name})),
+                    b.graph.path(.install_prefix, b.fmt("{s}.component", .{au.name})),
                 );
                 adhoc_sign.step.dependOn(&install_plist.step);
                 adhoc_sign.step.dependOn(&install_pkginfo.step);
@@ -322,7 +322,7 @@ pub fn finalize(self: *Plugin) void {
                 const home_dir = b.graph.environ_map.get("HOME").?;
                 var copy_run_step = createCopyRunStep(b, .{
                     .juzi = self.juzi,
-                    .src_dir = b.fmt("{s}/{s}.component", .{ b.install_prefix, au.name }),
+                    .src_dir = b.graph.path(.install_prefix, b.fmt("{s}.component", .{au.name})),
                     .dest_dir = b.fmt("{s}/Library/Audio/Plug-Ins/Components", .{home_dir}),
                 });
                 copy_run_step.dependOn(au_step);
@@ -525,14 +525,14 @@ pub const Vst3Category = enum {
         const contains_instrument = std.mem.containsAtLeastScalar(
             Vst3Category,
             existing_categories,
-            1,
             .Instrument,
+            1,
         );
         const contains_fx = std.mem.containsAtLeastScalar(
             Vst3Category,
             existing_categories,
-            1,
             .Fx,
+            1,
         );
 
         if (!contains_instrument and !contains_fx) {
@@ -597,8 +597,8 @@ pub const AudioUnitMainType = enum {
 /// Defines a `JucePlugin_Build_<FORMAT>` macro for each plugin format,
 /// setting it to `1` when active and `0` otherwise.
 fn addJucePluginBuildMacros(module: *std.Build.Module, active_formats: []const Format) void {
-    inline for (@typeInfo(Format).@"enum".fields) |field| {
-        const format: Format = @enumFromInt(field.value);
+    inline for (@typeInfo(Format).@"enum".field_values) |field_value| {
+        const format: Format = @fromBackingInt(@intCast(field_value));
         const is_active = if (std.mem.containsAtLeast(Format, active_formats, 1, &.{format})) "1" else "0";
         switch (format) {
             .vst3 => module.addCMacro("JucePlugin_Build_VST3", is_active),
@@ -666,14 +666,14 @@ fn semanticVersionToVersionCode(b: *std.Build, ver: []const u8) []const u8 {
 
 const CopyOptions = struct {
     juzi: *std.Build.Dependency,
-    src_dir: []const u8,
+    src_dir: std.Build.LazyPath,
     dest_dir: []const u8,
 };
 
 fn createCopyRunStep(b: *std.Build, options: CopyOptions) *std.Build.Step {
     const mod = b.createModule(.{
         .target = b.graph.host,
-        .optimize = .Debug,
+        .optimize = .debug,
         .root_source_file = options.juzi.path("src/copy.zig"),
     });
     const copy = b.addExecutable(.{
@@ -681,7 +681,8 @@ fn createCopyRunStep(b: *std.Build, options: CopyOptions) *std.Build.Step {
         .root_module = mod,
     });
     const copy_run = b.addRunArtifact(copy);
-    copy_run.addArgs(&.{ options.src_dir, options.dest_dir });
+    copy_run.addDirectoryArg2(options.src_dir, .{});
+    copy_run.addArg(options.dest_dir);
 
     return &copy_run.step;
 }

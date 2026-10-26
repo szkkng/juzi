@@ -17,7 +17,7 @@ Not yet supported:
 
 ## Requirements
 
-- [Zig](https://ziglang.org/download/) 0.16.0
+- [Zig](https://ziglang.org/download/) 0.17.0
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads) (Windows only)
 - [JUCE Linux dependencies](https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md#packages) (Linux only)
 
@@ -100,7 +100,7 @@ To build:
 zig build
 ```
 
-For release builds, add `-Doptimize=ReleaseFast`.
+For release builds, add `--release=fast`.
 
 You can list all available steps by running:
 
@@ -154,8 +154,6 @@ For reference, see how juzi's JUCE modules are defined in [`src/modules`](./src/
 ## Generating compile_commands.json
 
 Zig doesn't currently support generating `compile_commands.json`.  
-A common solution is to use [the-argus/zig-compile-commands](https://github.com/the-argus/zig-compile-commands).  
-See the example projects in this repo for how to use it with juzi.
 
 ## Examples
 

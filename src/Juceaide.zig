@@ -11,7 +11,7 @@ pub fn create(
     juce: *std.Build.Dependency,
 ) Juceaide {
     const target = if (b.graph.host.result.os.tag == .windows) b.resolveTargetQuery(.{ .abi = .msvc }) else b.graph.host;
-    const optimize: std.builtin.OptimizeMode = .Debug;
+    const optimize: std.builtin.OptimizeMode = .debug;
     const cxx_standard: setup.CxxStandard = .cxx17;
 
     const mod = b.createModule(.{

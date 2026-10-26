@@ -11,7 +11,7 @@ pub fn main(init: std.process.Init) !void {
     const arg_src_dir = args[1];
     const arg_dest_dir = args[2];
 
-    const src_dir = try std.Io.Dir.openDirAbsolute(
+    const src_dir = try std.Io.Dir.cwd().openDir(
         init.io,
         arg_src_dir,
         .{ .iterate = true },

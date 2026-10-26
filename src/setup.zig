@@ -53,7 +53,7 @@ fn collectJuceModule(
 
 pub fn addJuceStandardMacros(root_module: *std.Build.Module) void {
     root_module.addCMacro("JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED", "1");
-    root_module.addCMacro(if (root_module.optimize.? == .Debug) "DEBUG" else "NDEBUG", "1");
+    root_module.addCMacro(if (root_module.optimize.? == .debug) "DEBUG" else "NDEBUG", "1");
 }
 
 pub fn addFlagsToLinkObjects(module: *std.Build.Module, flags: []const []const u8) void {
