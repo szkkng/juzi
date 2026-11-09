@@ -36,7 +36,7 @@ zig init
 Download and add juzi as a dependency by running the following command in your project root:
 
 ```bash
-zig fetch --save git+https://codeberg.org/kengo/juzi
+zig fetch --save git+https://github.com/szkkng/juzi
 ```
 
 Then, configure your `build.zig` to use juzi.  
@@ -158,7 +158,7 @@ Zig doesn't currently support generating `compile_commands.json`.
 ## Examples
 
 - [Minimal](./examples/audio-plugin)
-- [JZR-Granular](https://codeberg.org/kengo/jzr-granular)
+- [JZR-Granular](https://github.com/szkkng/jzr-granular)
 
 ## License
 

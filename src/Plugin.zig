@@ -74,7 +74,7 @@ pub fn init(b: *std.Build, options: InitOptions) Plugin {
         // https://github.com/ziglang/zig/issues/5312
         .link_libcpp = !isWindows,
         // Temporary disable sanitizer on Windows:
-        // https://codeberg.org/kengo/juzi/issues/12
+        // https://github.com/juce-framework/JUCE/issues/1700
         .sanitize_c = if (isWindows) .off else null,
     });
 
