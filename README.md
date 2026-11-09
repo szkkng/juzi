@@ -17,7 +17,7 @@ Not yet supported:
 
 ## Requirements
 
-- [Zig](https://ziglang.org/download/) 0.17.0
+- [Zig](https://ziglang.org/download/) 0.17.1
 - [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads) (Windows only)
 - [JUCE Linux dependencies](https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md#packages) (Linux only)
 
